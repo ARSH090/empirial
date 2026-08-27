@@ -7,9 +7,38 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { getFaqs } from "@/lib/firebase/services";
 
 export default function Faq() {
-  const accordionItems = [
+  const [accordionItems, setAccordionItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadFaqs() {
+      try {
+        const data = await getFaqs();
+        if (data && data.length > 0) {
+          const mapped = data.map(item => ({
+            title: item.question,
+            content: (
+              <div className="text-muted-foreground">
+                {item.answer}
+              </div>
+            )
+          }));
+          setAccordionItems(mapped);
+        } else {
+          setAccordionItems(DEFAULT_ITEMS);
+        }
+      } catch (err) {
+        console.error("Failed to load FAQs:", err);
+        setAccordionItems(DEFAULT_ITEMS);
+      }
+    }
+    loadFaqs();
+  }, []);
+
+  const DEFAULT_ITEMS = [
     {
       title: "What is EMPIRIAL?",
       content: (

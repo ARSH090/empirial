@@ -5,19 +5,40 @@ import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { GitHubLogoIcon, TwitterLogoIcon } from "@radix-ui/react-icons";
+import { useState, useEffect } from "react";
+import { getSiteSettings } from "@/lib/firebase/services";
 
 const Footer = () => {
   const year = new Date().getFullYear();
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadFooter() {
+      try {
+        const data = await getSiteSettings();
+        if (data && data.footer) {
+          setSettings(data.footer);
+        }
+      } catch (err) {
+        console.error("Failed to load footer settings:", err);
+      }
+    }
+    loadFooter();
+  }, []);
+
+  const brandName = settings?.brandName || "EMPIRIAL";
+  const tagline = settings?.tagline || "Prop Trading Intelligence & Evaluation Platform.";
+  const copyrightText = settings?.copyrightText || `© ${year} EMPIRIAL. All rights reserved.`;
 
   const socialLinks = [
     {
       name: "Twitter",
-      href: "https://x.com/gonzalochale",
+      href: "https://x.com/empirial",
       icon: TwitterLogoIcon,
     },
     {
       name: "GitHub",
-      href: "https://github.com/gonzalochale",
+      href: "https://github.com/empirial",
       icon: GitHubLogoIcon,
     },
   ];
@@ -44,11 +65,10 @@ const Footer = () => {
                 href="/"
                 className="inline-block text-xl font-medium tracking-tight transition-opacity hover:opacity-80"
               >
-                Acme
+                {brandName}
               </Link>
               <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-                Build and scale your product faster with a platform designed for
-                modern teams.
+                {tagline}
               </p>
             </div>
 
@@ -95,8 +115,8 @@ const Footer = () => {
           <Separator />
 
           <div className="flex flex-col items-center justify-between gap-2 text-center text-sm text-muted-foreground sm:flex-row sm:text-left">
-            <span>© {year} Acme. All rights reserved.</span>
-            <span className="font-medium">#BuildingInPublic</span>
+            <span>{copyrightText}</span>
+            <span className="font-medium">#BuildingEmpires</span>
           </div>
         </motion.div>
       </div>

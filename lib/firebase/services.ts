@@ -621,5 +621,19 @@ export async function getPartnerLogos(): Promise<any[]> {
   if (!db) return [];
   const colRef = collection(db, 'partnerLogos');
   const snap = await getDocs(colRef);
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function getPricingPlans(): Promise<any[]> {
+  if (!db) return [];
+  const colRef = collection(db, 'pricingPlans');
+  const snap = await getDocs(colRef);
+  return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function getFaqs(): Promise<any[]> {
+  if (!db) return [];
+  const colRef = collection(db, 'faqs');
+  const snap = await getDocs(colRef);
+  return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 }

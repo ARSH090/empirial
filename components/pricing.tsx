@@ -1,15 +1,34 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getPricingPlans } from "@/lib/firebase/services";
 
 export default function Pricing() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [hasCopiedCodes, setHasCopiedCodes] = useState<Record<string, boolean>>({});
   const [shakingFirmId, setShakingFirmId] = useState<string | null>(null);
   const [warningFirmId, setWarningFirmId] = useState<string | null>(null);
+  const [firms, setFirms] = useState<any[]>([]);
 
-  const firms = [
+  useEffect(() => {
+    async function loadPricing() {
+      try {
+        const data = await getPricingPlans();
+        if (data && data.length > 0) {
+          setFirms(data);
+        } else {
+          setFirms(DEFAULT_FIRMS);
+        }
+      } catch (err) {
+        console.error("Failed to load pricing plans:", err);
+        setFirms(DEFAULT_FIRMS);
+      }
+    }
+    loadPricing();
+  }, []);
+
+  const DEFAULT_FIRMS = [
     {
       id: "nys",
       name: "NYS Capital",
@@ -73,7 +92,7 @@ export default function Pricing() {
     }
   };
 
-  const handleBuyChallenge = (e: React.MouseEvent, firm: (typeof firms)[0]) => {
+  const handleBuyChallenge = (e: React.MouseEvent, firm: any) => {
     if (!hasCopiedCodes[firm.id]) {
       e.preventDefault();
       // Trigger vibrating shake effect on Code button

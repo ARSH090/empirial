@@ -1,18 +1,56 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sliders, CheckCircle2 } from 'lucide-react';
+import { getSiteSettings, updateSiteSettings } from '@/lib/firebase/services';
 
 export default function AdminPageBuilderPage() {
-  const [headline, setHeadline] = useState('The Ultimate Prop Trading Intelligence Matrix');
-  const [subtext, setSubtext] = useState('Compare 500+ evaluation challenges with 5-segment profit split gauges, track forensic payout proofs, and unlock exclusive discounts up to 80%.');
+  const [headline, setHeadline] = useState('');
+  const [subtext, setSubtext] = useState('');
+  const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const settings = await getSiteSettings();
+        if (settings && settings.hero) {
+          setHeadline(settings.hero.title || 'The Ultimate Prop Trading Intelligence Matrix');
+          setSubtext(settings.hero.subtitle || 'Compare evaluation challenges, track forensic payout proofs, and unlock exclusive discounts.');
+        }
+      } catch (err) {
+        console.error('Failed to load page settings:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await updateSiteSettings({
+        hero: {
+          title: headline,
+          subtitle: subtext
+        }
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save page settings:', err);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading builder console...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

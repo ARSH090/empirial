@@ -1,22 +1,55 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, CheckCircle2, Database, AlertTriangle } from 'lucide-react';
 import { seedDatabase } from '@/lib/firebase/seeder';
+import { getSiteSettings, updateSiteSettings } from '@/lib/firebase/services';
 
 export default function AdminSettingsPage() {
-  const [siteName, setSiteName] = useState('EMPIRIAL 2.0 (ANURAJ FX)');
+  const [siteName, setSiteName] = useState('EMPIRIAL');
   const [maintenance, setMaintenance] = useState(false);
   const [eventPopup, setEventPopup] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
   const [seeding, setSeeding] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const settings = await getSiteSettings();
+        if (settings) {
+          if (settings.footer && settings.footer.brandName) {
+            setSiteName(settings.footer.brandName);
+          }
+          setMaintenance(settings.maintenanceMode ?? false);
+          setEventPopup(settings.eventPopupEnabled ?? true);
+        }
+      } catch (err) {
+        console.error('Failed to load site settings:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await updateSiteSettings({
+        footer: {
+          brandName: siteName
+        },
+        maintenanceMode: maintenance,
+        eventPopupEnabled: eventPopup
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+    }
   };
 
   const handleSeed = async () => {
@@ -32,6 +65,15 @@ export default function AdminSettingsPage() {
       setSeeding(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading system parameters...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
