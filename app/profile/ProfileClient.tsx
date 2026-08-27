@@ -1,0 +1,1417 @@
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  User,
+  Mail,
+  Phone,
+  ShieldCheck,
+  Trophy,
+  Gift,
+  Calendar,
+  CheckCircle2,
+  ExternalLink,
+  MessageSquare,
+  Award,
+  Clock,
+  ChevronRight,
+  ListTodo,
+  Sparkles,
+  Lock,
+  Edit3,
+  Save,
+  Check,
+  Star,
+  Ticket,
+  Plus,
+  Send,
+  AlertCircle,
+  TrendingUp,
+  CreditCard,
+  Building2,
+  X,
+  FileText,
+  HelpCircle,
+  Gamepad2,
+  GraduationCap,
+  Radio,
+  Layers,
+  ChevronDown,
+} from 'lucide-react';
+import {
+  UserProfile,
+  DEMO_TRADER,
+  getStoredUser,
+  saveUser,
+  UserProfileReview,
+  getStoredUserReviews,
+  addUserReview,
+  UserSupportTicket,
+  getStoredSupportTickets,
+  addSupportTicket,
+  replyToSupportTicket,
+  DEFAULT_PURCHASED_ACCOUNTS,
+} from '@/lib/utils/auth-store';
+import { MOCK_EVENTS } from '@/lib/data/events-data';
+import { MOCK_FIRMS } from '@/lib/data/firms-data';
+
+export function ProfileClient() {
+  const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_TRADER);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'reviews' | 'events' | 'support'>('dashboard');
+
+  // Edit profile state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editDiscord, setEditDiscord] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+
+  // Reviews state & filters
+  const [reviewsList, setReviewsList] = useState<UserProfileReview[]>([]);
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'published' | 'pending' | 'replied'>('all');
+  const [isWriteReviewModalOpen, setIsWriteReviewModalOpen] = useState(false);
+  const [newReviewFirmId, setNewReviewFirmId] = useState('nys');
+  const [newReviewTitle, setNewReviewTitle] = useState('');
+  const [newReviewBody, setNewReviewBody] = useState('');
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewConditions, setNewReviewConditions] = useState(5);
+  const [newReviewSupport, setNewReviewSupport] = useState(5);
+  const [newReviewEase, setNewReviewEase] = useState(5);
+  const [newReviewPayouts, setNewReviewPayouts] = useState(5);
+
+  // Events state & filters
+  const [eventsFilter, setEventsFilter] = useState<'all' | 'tournament' | 'gaming' | 'learn-crack' | 'live-session'>('all');
+
+  // Support Tickets state
+  const [ticketsList, setTicketsList] = useState<UserSupportTicket[]>([]);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [isOpenNewTicketModal, setIsOpenNewTicketModal] = useState(false);
+  const [newTicketSubject, setNewTicketSubject] = useState('');
+  const [newTicketCategory, setNewTicketCategory] = useState<'payouts' | 'accounts' | 'events' | 'discounts' | 'general'>('payouts');
+  const [newTicketPriority, setNewTicketPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
+  const [newTicketMessage, setNewTicketMessage] = useState('');
+  const [ticketReplyText, setTicketReplyText] = useState('');
+  const [ticketToastMsg, setTicketToastMsg] = useState('');
+
+  // Accounts Purchased Filter
+  const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'funded' | 'passed' | 'scaling' | 'active'>('all');
+
+  // Load initial data
+  useEffect(() => {
+    const user = getStoredUser() || DEMO_TRADER;
+    setCurrentUser(user);
+    setEditName(user.displayName);
+    setEditPhone(user.phoneNumber || '+1 (555) 389-2049');
+    setEditDiscord(user.discordHandle || '@anuraj_trader');
+    setEditCountry(user.country || 'India');
+
+    setReviewsList(getStoredUserReviews());
+    setTicketsList(getStoredSupportTickets());
+
+    const handleAuthChange = (e: CustomEvent) => {
+      if (e.detail) {
+        setCurrentUser(e.detail);
+        setEditName(e.detail.displayName);
+        setEditPhone(e.detail.phoneNumber || '+1 (555) 389-2049');
+      }
+    };
+
+    const handleReviewsChange = (e: CustomEvent) => {
+      if (e.detail) setReviewsList(e.detail);
+    };
+
+    const handleTicketsChange = (e: CustomEvent) => {
+      if (e.detail) setTicketsList(e.detail);
+    };
+
+    window.addEventListener('auth-changed' as any, handleAuthChange);
+    window.addEventListener('user-reviews-changed' as any, handleReviewsChange);
+    window.addEventListener('support-tickets-changed' as any, handleTicketsChange);
+
+    return () => {
+      window.removeEventListener('auth-changed' as any, handleAuthChange);
+      window.removeEventListener('user-reviews-changed' as any, handleReviewsChange);
+      window.removeEventListener('support-tickets-changed' as any, handleTicketsChange);
+    };
+  }, []);
+
+  // Save Profile Handler
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated: UserProfile = {
+      ...currentUser,
+      displayName: editName.trim() || currentUser.displayName,
+      phoneNumber: editPhone.trim() || currentUser.phoneNumber,
+      discordHandle: editDiscord.trim() || currentUser.discordHandle,
+      country: editCountry.trim() || currentUser.country,
+    };
+    saveUser(updated);
+    setCurrentUser(updated);
+    setIsEditingProfile(false);
+    setProfileSuccessMsg('Profile information successfully updated.');
+    setTimeout(() => setProfileSuccessMsg(''), 3000);
+  };
+
+  // Submit New Review Handler
+  const handleSubmitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReviewTitle.trim() || !newReviewBody.trim()) return;
+
+    const firmObj = MOCK_FIRMS.find((f) => f.id === newReviewFirmId);
+    const firmName = firmObj ? firmObj.name : 'Prop Firm';
+    const firmLogo = firmObj ? firmObj.logo_url : '/logos/nys.png';
+
+    addUserReview({
+      firm_id: newReviewFirmId,
+      firm_name: firmName,
+      firm_logo: firmLogo,
+      user_name: currentUser.displayName,
+      title: newReviewTitle.trim(),
+      body: newReviewBody.trim(),
+      overall_rating: newReviewRating,
+      trading_conditions: newReviewConditions,
+      customer_care: newReviewSupport,
+      user_friendliness: newReviewEase,
+      payout_process: newReviewPayouts,
+    });
+
+    setReviewsList(getStoredUserReviews());
+    setIsWriteReviewModalOpen(false);
+    setNewReviewTitle('');
+    setNewReviewBody('');
+  };
+
+  // Submit New Support Ticket Handler
+  const handleCreateTicket = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTicketSubject.trim() || !newTicketMessage.trim()) return;
+
+    const created = addSupportTicket({
+      user_id: currentUser.uid,
+      user_name: currentUser.displayName,
+      user_email: currentUser.email,
+      user_phone: currentUser.phoneNumber,
+      subject: newTicketSubject.trim(),
+      category: newTicketCategory,
+      priority: newTicketPriority,
+      initialMessage: newTicketMessage.trim(),
+    });
+
+    setTicketsList(getStoredSupportTickets());
+    setSelectedTicketId(created.id);
+    setIsOpenNewTicketModal(false);
+    setNewTicketSubject('');
+    setNewTicketMessage('');
+    setTicketToastMsg(`Support Ticket ${created.id} opened. Telemetry sent to Admin Inbox.`);
+    setTimeout(() => setTicketToastMsg(''), 4000);
+  };
+
+  // Reply to Ticket
+  const handleSendTicketReply = (ticketId: string) => {
+    if (!ticketReplyText.trim()) return;
+    replyToSupportTicket(ticketId, ticketReplyText.trim(), 'user', currentUser.displayName);
+    setTicketsList(getStoredSupportTickets());
+    setTicketReplyText('');
+  };
+
+  // Filtered Reviews
+  const filteredReviews = useMemo(() => {
+    if (reviewFilter === 'all') return reviewsList;
+    return reviewsList.filter((r) => r.status === reviewFilter);
+  }, [reviewsList, reviewFilter]);
+
+  // Filtered Registered Events
+  const registeredEvents = useMemo(() => {
+    const list = MOCK_EVENTS.filter((e) => ['ev-tour-1', 'ev-tour-2', 'ev-game-1'].includes(e.id));
+    if (eventsFilter === 'all') return list;
+    return list.filter((e) => e.sub_category === eventsFilter);
+  }, [eventsFilter]);
+
+  // Filtered Purchased Accounts
+  const filteredPurchasedAccounts = useMemo(() => {
+    const list = currentUser.accountsPurchased || DEFAULT_PURCHASED_ACCOUNTS;
+    if (accountStatusFilter === 'all') return list;
+    return list.filter((a) => a.status === accountStatusFilter);
+  }, [currentUser.accountsPurchased, accountStatusFilter]);
+
+  const selectedTicket = ticketsList.find((t) => t.id === selectedTicketId) || ticketsList[0];
+
+  return (
+    <div className="relative min-h-screen w-full bg-background text-foreground transition-colors duration-200 overflow-x-clip py-8 px-4 sm:px-6 lg:px-8">
+      {/* Continuous Atmospheric Tilted Blue Light Beam (Match Home hero) */}
+      <div className="absolute top-0 inset-x-0 w-full h-full pointer-events-none overflow-hidden z-0">
+        <div className="relative w-full max-w-5xl mx-auto h-full flex justify-end">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.5, delay: 0.1, ease: 'easeOut' }}
+            className="absolute -top-12 sm:-top-20 right-0 sm:right-6 md:right-12 w-20 sm:w-28 md:w-36 h-[2400px] sm:h-[3200px] lg:h-[4000px] bg-gradient-to-b from-[#016fee] from-0% via-[#016fee]/65 via-35% to-transparent to-85% blur-[70px] sm:blur-[85px] rounded-full rotate-[28deg] sm:rotate-[32deg] origin-top will-change-transform opacity-80 dark:opacity-70"
+          />
+        </div>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto space-y-8">
+        
+        {/* Toast Alerts */}
+        <AnimatePresence>
+          {profileSuccessMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-lg"
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span>{profileSuccessMsg}</span>
+              </div>
+              <button onClick={() => setProfileSuccessMsg('')} className="p-1 hover:opacity-70 cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+
+          {ticketToastMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="p-3 rounded-2xl bg-black text-white dark:bg-white dark:text-black border border-white/20 dark:border-black/20 text-xs font-semibold flex items-center justify-between shadow-xl"
+            >
+              <div className="flex items-center gap-2">
+                <Ticket className="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" />
+                <span>{ticketToastMsg}</span>
+              </div>
+              <button onClick={() => setTicketToastMsg('')} className="p-1 hover:opacity-70 cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 1. Main Profile Top Card (Translucent for White theme only: bg-white/60 dark:bg-card backdrop-blur-md) */}
+        <div className="bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
+          <div className="flex items-center gap-4 sm:gap-6">
+            {/* Avatar */}
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center text-xl sm:text-2xl font-extrabold shadow-md shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-800">
+              {currentUser.avatarUrl ? (
+                <img src={currentUser.avatarUrl} alt={currentUser.displayName} className="w-full h-full object-cover" />
+              ) : (
+                <span>{currentUser.displayName.slice(0, 2).toUpperCase()}</span>
+              )}
+            </div>
+
+            {/* Trader Info Header */}
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                  {currentUser.displayName}
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                  <span>Verified Trader</span>
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="font-semibold text-foreground">{currentUser.email}</span>
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>{currentUser.phoneNumber || '+1 (555) 389-2049'}</span>
+                </span>
+                <span>•</span>
+                <span className="font-mono text-xs font-bold text-foreground">
+                  PASSPORT: {currentUser.traderId || 'EMP-90428'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Header CTA Actions */}
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <Link
+              href="/challenges"
+              className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Explore Challenges</span>
+            </Link>
+            <Link
+              href="/events"
+              className="px-4 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold transition-all"
+            >
+              <Trophy className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* 2. Navigation Tabs (Dashboard, Reviews, Events & Giveaway, Contact Support) */}
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 max-w-2xl overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex-1 min-w-[120px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'dashboard'
+                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>1. Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('reviews')}
+            className={`flex-1 min-w-[120px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'reviews'
+                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5" />
+            <span>2. Reviews ({reviewsList.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('events')}
+            className={`flex-1 min-w-[140px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'events'
+                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>3. Events & Giveaway</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('support')}
+            className={`flex-1 min-w-[130px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'support'
+                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Ticket className="w-3.5 h-3.5" />
+            <span>4. Contact Support ({ticketsList.length})</span>
+          </button>
+        </div>
+
+        {/* ======================= TAB 1: DASHBOARD ======================= */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8">
+            
+            {/* Quick Metrics Bar (Strictly RULE:BW Numbers & Typography) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">Accounts Purchased</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  {(currentUser.accountsPurchased || DEFAULT_PURCHASED_ACCOUNTS).length}
+                </div>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>All Verified via Webhooks</span>
+                </span>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">Total Capital Managed</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  $475,000
+                </div>
+                <span className="text-[11px] text-muted-foreground font-medium">Across 5 Active Firms</span>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">Passed Evaluations</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  3 Passed
+                </div>
+                <span className="text-[11px] text-muted-foreground font-medium">60% Success Ratio</span>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">Total Payouts Received</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  $28,450
+                </div>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">100% On-Chain Verified</span>
+              </div>
+            </div>
+
+            {/* Profile Information Card (Name, Number, Email Non-Editable) */}
+            <div className="bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-xs">
+              <div className="flex items-center justify-between border-b border-zinc-200/80 dark:border-zinc-800 pb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-foreground">
+                    Trader Profile & Account Credentials
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Manage your personal details. Email is locked for passport identity integrity.
+                  </p>
+                </div>
+
+                {!isEditingProfile ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(true)}
+                    className="px-3.5 py-1.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit Profile</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="px-3.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 text-muted-foreground text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                {/* 1. Name Field (Editable) */}
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-foreground" />
+                    <span>Full Name / Trader Name</span>
+                  </label>
+                  {isEditingProfile ? (
+                    <input
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold focus:outline-none focus:border-black dark:focus:border-white"
+                    />
+                  ) : (
+                    <div className="p-3 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/80 font-bold text-foreground">
+                      {currentUser.displayName}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Number Field (Editable) */}
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-foreground" />
+                    <span>Contact Number (WhatsApp / Phone)</span>
+                  </label>
+                  {isEditingProfile ? (
+                    <input
+                      type="tel"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold focus:outline-none focus:border-black dark:focus:border-white"
+                    />
+                  ) : (
+                    <div className="p-3 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/80 font-bold text-foreground">
+                      {currentUser.phoneNumber || '+1 (555) 389-2049'}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Email Field (NON EDITABLE per requirement) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-foreground" />
+                      <span>Email Address</span>
+                    </label>
+                    <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-extrabold uppercase text-muted-foreground flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      <span>Non-Editable</span>
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800 font-mono font-bold text-muted-foreground flex items-center justify-between cursor-not-allowed">
+                    <span>{currentUser.email}</span>
+                    <Lock className="w-3.5 h-3.5 text-muted-foreground/60" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Email address is verified & cryptographically bound to your EMPIRIAL Passport.
+                  </p>
+                </div>
+
+                {/* 4. Discord Handle */}
+                <div className="space-y-1.5">
+                  <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-foreground" />
+                    <span>Discord Username / Handle</span>
+                  </label>
+                  {isEditingProfile ? (
+                    <input
+                      type="text"
+                      value={editDiscord}
+                      onChange={(e) => setEditDiscord(e.target.value)}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold focus:outline-none focus:border-black dark:focus:border-white"
+                    />
+                  ) : (
+                    <div className="p-3 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/80 font-bold text-foreground">
+                      {currentUser.discordHandle || '@anuraj_trader'}
+                    </div>
+                  )}
+                </div>
+
+                {isEditingProfile && (
+                  <div className="col-span-full pt-2">
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-semibold text-xs transition-all shadow-xs flex items-center gap-2 cursor-pointer"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Profile Changes</span>
+                    </button>
+                  </div>
+                )}
+              </form>
+            </div>
+
+            {/* Purchased Accounts Section (Detailed List of Account Purchased) */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200/80 dark:border-zinc-800 pb-3">
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-foreground">
+                    Purchased Prop Evaluation & Combine Accounts ({filteredPurchasedAccounts.length})
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Direct integration with registered firm trading webhooks, login credentials, and scaling credentials.
+                  </p>
+                </div>
+
+                {/* Status Filter Tabs */}
+                <div className="flex items-center gap-1 p-0.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-xs self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setAccountStatusFilter('all')}
+                    className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                      accountStatusFilter === 'all'
+                        ? 'bg-white dark:bg-zinc-800 text-foreground shadow-2xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    All (5)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountStatusFilter('active')}
+                    className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                      accountStatusFilter === 'active'
+                        ? 'bg-white dark:bg-zinc-800 text-foreground shadow-2xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountStatusFilter('passed')}
+                    className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                      accountStatusFilter === 'passed'
+                        ? 'bg-white dark:bg-zinc-800 text-foreground shadow-2xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Passed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountStatusFilter('funded')}
+                    className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                      accountStatusFilter === 'funded'
+                        ? 'bg-white dark:bg-zinc-800 text-foreground shadow-2xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Funded
+                  </button>
+                </div>
+              </div>
+
+              {/* Account Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPurchasedAccounts.map((acc) => (
+                  <div
+                    key={acc.id}
+                    className="p-6 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-4 flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      {/* Top Row: Logo & Status Badge */}
+                      <div className="flex items-center justify-between">
+                        <div className="h-9 w-auto max-w-[120px] flex items-center shrink-0">
+                          {acc.firm_logo ? (
+                            <img src={acc.firm_logo} alt={acc.firm_name} className="h-9 w-auto object-contain rounded-md" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-md bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs">
+                              {acc.firm_name.slice(0, 2)}
+                            </div>
+                          )}
+                        </div>
+
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                          acc.status === 'funded'
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                            : acc.status === 'passed'
+                            ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30'
+                            : acc.status === 'scaling'
+                            ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30'
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-foreground'
+                        }`}>
+                          {acc.status}
+                        </span>
+                      </div>
+
+                      {/* Account Name & Type */}
+                      <div>
+                        <h4 className="text-base font-bold text-foreground leading-snug">{acc.account_type}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                          Platform: <strong className="text-foreground">{acc.platform}</strong>
+                        </p>
+                      </div>
+
+                      {/* Info Spec Box */}
+                      <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 space-y-1.5 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Login / User ID:</span>
+                          <span className="font-mono font-bold text-foreground">{acc.account_number}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Order Date:</span>
+                          <span className="font-medium text-foreground">{acc.purchase_date}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-zinc-200/50 dark:border-zinc-800">
+                          <span className="text-muted-foreground">Order Reference:</span>
+                          <span className="font-mono text-[11px] font-semibold text-muted-foreground">{acc.order_id}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-1">
+                      <Link
+                        href={`/firms`}
+                        className="w-full py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold text-center block transition-all shadow-2xs"
+                      >
+                        Launch Platform Dashboard →
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ======================= TAB 2: REVIEWS ======================= */}
+        {activeTab === 'reviews' && (
+          <div className="space-y-6">
+            
+            {/* Header & Sub-Category Filters */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">
+                  My Authored Prop Firm Reviews & Ratings
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Categorized reviews shared by you, pending moderation reviews, and official firm replies.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsWriteReviewModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Write New Review</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-Category Filter Tabs (All / Verified / Pending / Firm Replied) */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-foreground mr-1">Filter Reviews:</span>
+              
+              <button
+                type="button"
+                onClick={() => setReviewFilter('all')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  reviewFilter === 'all'
+                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All Reviews ({reviewsList.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReviewFilter('published')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  reviewFilter === 'published'
+                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Published & Verified ({reviewsList.filter((r) => r.status === 'published').length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReviewFilter('pending')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  reviewFilter === 'pending'
+                    ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Pending Moderation ({reviewsList.filter((r) => r.status === 'pending').length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReviewFilter('replied')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  reviewFilter === 'replied'
+                    ? 'bg-sky-500/20 text-sky-800 dark:text-sky-300 font-bold shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Replied by Firm ({reviewsList.filter((r) => r.status === 'replied').length})
+              </button>
+            </div>
+
+            {/* Review Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredReviews.map((rev) => (
+                <div
+                  key={rev.id}
+                  className="p-6 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-4 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    {/* Header: Logo, Firm Name & Status Badge */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        {rev.firm_logo ? (
+                          <img src={rev.firm_logo} alt={rev.firm_name} className="h-8 w-auto object-contain rounded-md" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-md bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs">
+                            {rev.firm_name.slice(0, 2)}
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-foreground text-sm">{rev.firm_name}</h4>
+                          <span className="text-[11px] text-muted-foreground">{rev.created_at}</span>
+                        </div>
+                      </div>
+
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                        rev.status === 'published'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                          : rev.status === 'pending'
+                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                          : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30'
+                      }`}>
+                        {rev.status === 'published' ? 'Verified & Live' : rev.status === 'pending' ? 'Pending Review' : 'Firm Responded'}
+                      </span>
+                    </div>
+
+                    {/* Overall Rating & 4 Criteria */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1 text-amber-500">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${i < rev.overall_rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-300 dark:text-zinc-700'}`}
+                          />
+                        ))}
+                        <span className="font-bold text-xs text-foreground ml-1.5">{rev.overall_rating}.0 ★</span>
+                      </div>
+
+                      {/* 4 Criteria Scores Bar */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px]">
+                          <span className="text-muted-foreground block">Conditions</span>
+                          <span className="font-extrabold text-foreground">{rev.trading_conditions}/5</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px]">
+                          <span className="text-muted-foreground block">Support</span>
+                          <span className="font-extrabold text-foreground">{rev.customer_care}/5</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px]">
+                          <span className="text-muted-foreground block">Platform</span>
+                          <span className="font-extrabold text-foreground">{rev.user_friendliness}/5</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px]">
+                          <span className="text-muted-foreground block">Payouts</span>
+                          <span className="font-extrabold text-foreground">{rev.payout_process}/5</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Review Title & Body */}
+                    <div className="space-y-1">
+                      <h5 className="font-bold text-foreground text-sm leading-snug">{rev.title}</h5>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{rev.body}</p>
+                    </div>
+
+                    {/* Official Firm Reply Block if available */}
+                    {rev.firm_reply && (
+                      <div className="p-3.5 rounded-2xl bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 space-y-1 text-xs">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-bold text-foreground flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-sky-500" />
+                            <span>{rev.firm_reply.author}</span>
+                          </span>
+                          <span className="text-muted-foreground font-mono">{rev.firm_reply.replied_at}</span>
+                        </div>
+                        <p className="text-muted-foreground italic text-[11px] leading-relaxed">
+                          "{rev.firm_reply.message}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{rev.upvotes} helpful trader votes</span>
+                    <Link href="/reviews" className="underline hover:text-foreground font-semibold">
+                      View Public Directory →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        )}
+
+        {/* ======================= TAB 3: EVENTS & GIVEAWAY ======================= */}
+        {activeTab === 'events' && (
+          <div className="space-y-6">
+            
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">
+                  My Active Registrations & Tournament Passports
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Access your tournament credentials, Discord rooms, proof verifications, and prize eligibility.
+                </p>
+              </div>
+
+              <Link
+                href="/events"
+                className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Browse All Tournaments</span>
+              </Link>
+            </div>
+
+            {/* Sub-Category Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-foreground mr-1">Category:</span>
+              
+              <button
+                type="button"
+                onClick={() => setEventsFilter('all')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  eventsFilter === 'all'
+                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All Registrations (3)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEventsFilter('tournament')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  eventsFilter === 'tournament'
+                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Trading Tournaments (2)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEventsFilter('gaming')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  eventsFilter === 'gaming'
+                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Gaming Contests (1)
+              </button>
+            </div>
+
+            {/* Events Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {registeredEvents.map((ev, index) => (
+                <div
+                  key={ev.id}
+                  className="rounded-3xl border border-zinc-200/80 dark:border-border bg-white/60 dark:bg-card backdrop-blur-md p-6 space-y-4 shadow-xs flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    {/* Header Pill */}
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Confirmed Registry</span>
+                      </span>
+
+                      <span className="font-mono text-[10px] font-bold text-muted-foreground">
+                        PASS: REG-2026-X0{index + 1}
+                      </span>
+                    </div>
+
+                    {/* Event Title & Host */}
+                    <div>
+                      <h3 className="text-base font-bold text-foreground leading-snug">
+                        {ev.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Hosted by <strong className="text-foreground">{ev.host_name}</strong>
+                      </p>
+                    </div>
+
+                    {/* Prize & Timing */}
+                    <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Prize Pool:</span>
+                        <span className="font-extrabold tracking-tight text-foreground">{ev.prize_pool}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-zinc-200/50 dark:border-zinc-800">
+                        <span className="text-muted-foreground">Timeline:</span>
+                        <span className="font-mono font-bold text-foreground">{ev.countdown_label}</span>
+                      </div>
+                    </div>
+
+                    {/* Email Notification Status */}
+                    <div className="p-3 rounded-xl bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Confirmation Email:</span>
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">Delivered</span>
+                    </div>
+
+                    {/* Discord Channel Link */}
+                    {ev.requires_discord && (
+                      <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-between text-xs">
+                        <span className="text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Event Discord Server</span>
+                        </span>
+                        <a
+                          href={ev.discord_url || 'https://discord.gg/empirial'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 transition-colors flex items-center gap-1"
+                        >
+                          <span>Join Room</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-2">
+                    <Link
+                      href="/events"
+                      className="w-full py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold text-center block transition-all shadow-2xs"
+                    >
+                      View Event Hub Page →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        )}
+
+        {/* ======================= TAB 4: CONTACT SUPPORT (TICKETING SYSTEM) ======================= */}
+        {activeTab === 'support' && (
+          <div className="space-y-6">
+            
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">
+                  Trader Support & Priority Ticket Desk
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Open support tickets for payouts, account verifications, and discount inquiries. All tickets sync directly to the Admin Panel.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsOpenNewTicketModal(true)}
+                className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Open New Ticket</span>
+              </button>
+            </div>
+
+            {/* Tickets Interface Layout: Left List + Right Thread Preview */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: Tickets List */}
+              <div className="lg:col-span-5 space-y-3">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                  Your Tickets ({ticketsList.length})
+                </span>
+
+                <div className="space-y-3">
+                  {ticketsList.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTicketId(t.id)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-2 ${
+                        (selectedTicketId === t.id || (!selectedTicketId && ticketsList[0]?.id === t.id))
+                          ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-md'
+                          : 'bg-white/60 dark:bg-card backdrop-blur-md border-zinc-200/80 dark:border-border hover:border-zinc-400 text-foreground shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono font-extrabold">{t.id}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          t.status === 'resolved'
+                            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                            : t.status === 'in_progress'
+                            ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400'
+                            : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        }`}>
+                          {t.status.replace('_', ' ')}
+                        </span>
+                      </div>
+
+                      <h4 className="font-bold text-xs leading-snug line-clamp-1">{t.subject}</h4>
+                      
+                      <div className="flex items-center justify-between text-[11px] opacity-80 pt-1">
+                        <span className="capitalize">{t.category}</span>
+                        <span>{t.messages.length} message(s)</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Ticket Conversation Thread */}
+              <div className="lg:col-span-7 bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border rounded-3xl p-6 space-y-5 shadow-xs">
+                {selectedTicket ? (
+                  <>
+                    {/* Thread Header */}
+                    <div className="flex items-start justify-between border-b border-zinc-200/80 dark:border-zinc-800 pb-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-extrabold text-foreground">{selectedTicket.id}</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-800 text-foreground">
+                            {selectedTicket.category}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-800 text-foreground">
+                            Priority: {selectedTicket.priority}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-base text-foreground">{selectedTicket.subject}</h3>
+                      </div>
+
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold uppercase ${
+                        selectedTicket.status === 'resolved'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                          : selectedTicket.status === 'in_progress'
+                          ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                      }`}>
+                        {selectedTicket.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    {/* Messages Container */}
+                    <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+                      {selectedTicket.messages.map((m) => {
+                        const isTrader = m.sender === 'user';
+                        return (
+                          <div
+                            key={m.id}
+                            className={`p-4 rounded-2xl space-y-1.5 text-xs ${
+                              isTrader
+                                ? 'bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 text-foreground ml-4'
+                                : 'bg-black text-white dark:bg-zinc-800 dark:text-white mr-4 shadow-md'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-[11px] font-bold opacity-80">
+                              <span>{m.sender_name}</span>
+                              <span className="font-mono text-[10px]">{m.timestamp}</span>
+                            </div>
+                            <p className="leading-relaxed text-xs">{m.text}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Reply Input Box */}
+                    <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={ticketReplyText}
+                          onChange={(e) => setTicketReplyText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSendTicketReply(selectedTicket.id);
+                          }}
+                          placeholder="Type your follow-up reply..."
+                          className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-black dark:focus:border-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSendTicketReply(selectedTicket.id)}
+                          className="px-4 py-2.5 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Send</span>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Your messages are delivered directly to the EMPIRIAL Support & Admin Moderation desk.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground text-xs">
+                    Select a ticket on the left to view the thread.
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+      </div>
+
+      {/* MODAL 1: Write New Review Modal */}
+      <AnimatePresence>
+        {isWriteReviewModalOpen && (
+          <div
+            onClick={() => setIsWriteReviewModalOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 cursor-pointer"
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl cursor-default max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Write a Prop Firm Review</h3>
+                  <p className="text-xs text-muted-foreground">Your review will be verified and published to the community.</p>
+                </div>
+                <button onClick={() => setIsWriteReviewModalOpen(false)} className="p-1 text-muted-foreground hover:text-foreground cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitReview} className="space-y-4 text-xs">
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground">Select Prop Firm</label>
+                  <select
+                    value={newReviewFirmId}
+                    onChange={(e) => setNewReviewFirmId(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 font-semibold text-foreground"
+                  >
+                    {MOCK_FIRMS.map((f) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground">Overall Rating (1 to 5 Stars)</label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setNewReviewRating(star)}
+                        className="p-1 cursor-pointer"
+                      >
+                        <Star className={`w-5 h-5 ${star <= newReviewRating ? 'fill-amber-400 text-amber-400' : 'text-zinc-300 dark:text-zinc-700'}`} />
+                      </button>
+                    ))}
+                    <span className="font-bold ml-2 text-foreground">{newReviewRating}.0 Stars</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground">Review Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Fast payout turnaround and great cTrader spreads"
+                    value={newReviewTitle}
+                    onChange={(e) => setNewReviewTitle(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground">Review Experience & Feedback</label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="Describe your execution, rules experience, scaling, and payout processing..."
+                    value={newReviewBody}
+                    onChange={(e) => setNewReviewBody(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsWriteReviewModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold cursor-pointer shadow-xs"
+                  >
+                    Submit for Moderation
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 2: Open Support Ticket Modal */}
+      <AnimatePresence>
+        {isOpenNewTicketModal && (
+          <div
+            onClick={() => setIsOpenNewTicketModal(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 cursor-pointer"
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl cursor-default"
+            >
+              <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Open a Support Ticket</h3>
+                  <p className="text-xs text-muted-foreground">Our team monitors priority tickets 24/7.</p>
+                </div>
+                <button onClick={() => setIsOpenNewTicketModal(false)} className="p-1 text-muted-foreground hover:text-foreground cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground">Category</label>
+                    <select
+                      value={newTicketCategory}
+                      onChange={(e) => setNewTicketCategory(e.target.value as any)}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 font-semibold text-foreground"
+                    >
+                      <option value="payouts">Payout Inquiry</option>
+                      <option value="accounts">Account Verification</option>
+                      <option value="events">Tournament / Giveaway</option>
+                      <option value="discounts">Discount Codes</option>
+                      <option value="general">General Support</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground">Priority</label>
+                    <select
+                      value={newTicketPriority}
+                      onChange={(e) => setNewTicketPriority(e.target.value as any)}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 font-semibold text-foreground"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="high">High Priority</option>
+                      <option value="urgent">Urgent Escalation</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground">Ticket Subject</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Need assistance with NYS Capital telemetry sync"
+                    value={newTicketSubject}
+                    onChange={(e) => setNewTicketSubject(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-foreground">Detailed Message</label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="Provide relevant account numbers, transaction hashes, or challenge details..."
+                    value={newTicketMessage}
+                    onChange={(e) => setNewTicketMessage(e.target.value)}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsOpenNewTicketModal(false)}
+                    className="px-4 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold cursor-pointer shadow-xs"
+                  >
+                    Open Ticket Now
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}
+
+export default ProfileClient;

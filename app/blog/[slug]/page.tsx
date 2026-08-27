@@ -1,0 +1,88 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Clock, Calendar, User, Share2, Sparkles, ShieldCheck } from 'lucide-react';
+import { MOCK_BLOG_POSTS } from '@/lib/data/blog-data';
+
+export default function BlogPostPage() {
+  const params = useParams();
+  const slug = params?.slug as string;
+
+  const post = MOCK_BLOG_POSTS.find((p) => p.slug === slug) || MOCK_BLOG_POSTS[0];
+
+  return (
+    <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+      {/* Back link */}
+      <Link
+        href="/blog"
+        className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-cyan-400 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span>Back to Education Hub</span>
+      </Link>
+
+      {/* Header */}
+      <div className="space-y-4 border-b border-white/10 pb-8">
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold uppercase">
+            {post.category}
+          </span>
+          <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" />
+            <span>{post.read_time}</span>
+          </span>
+          <span className="text-xs text-slate-400 font-mono">
+            {post.published_at}
+          </span>
+        </div>
+
+        <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+          {post.title}
+        </h1>
+
+        <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+          {post.excerpt}
+        </p>
+
+        {/* Author Card */}
+        <div className="flex items-center justify-between pt-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-sm">
+              {post.author.name.substring(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">{post.author.name}</h3>
+              <p className="text-xs text-slate-400">{post.author.role}</p>
+            </div>
+          </div>
+
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Verified Guide
+          </span>
+        </div>
+      </div>
+
+      {/* Post Markdown Content */}
+      <div className="bg-elevation-surface border border-white/10 rounded-3xl p-6 sm:p-10 space-y-6 text-slate-300 text-sm sm:text-base leading-relaxed whitespace-pre-line shadow-2xl">
+        {post.content}
+      </div>
+
+      {/* Bottom CTA */}
+      <div className="p-8 rounded-3xl bg-gradient-to-r from-cyan-950/40 to-elevation-surface border border-cyan-500/30 text-center space-y-4 shadow-xl">
+        <h3 className="text-xl font-bold text-white">Ready to Put This Strategy into Practice?</h3>
+        <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+          Explore our audited 13-column evaluation matrix and find the challenge tailored to your risk model.
+        </p>
+        <Link
+          href="/challenges"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-slate-200 text-black font-bold text-xs sm:text-sm transition-all shadow-lg active:scale-95"
+        >
+          <span>Explore 500+ Challenges Matrix</span>
+        </Link>
+      </div>
+    </article>
+  );
+}
