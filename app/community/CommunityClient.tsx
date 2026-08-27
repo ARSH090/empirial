@@ -16,9 +16,12 @@ import {
 import { MOCK_POSTS } from '@/lib/data/community-data';
 import { CommunityPost } from '@/lib/types';
 import { openAuthModal } from '@/lib/utils/auth-store';
+import { getCommunityPosts, createCommunityPost, addCommunityComment } from '@/lib/firebase/services';
+import { useEffect } from 'react';
 
 export function CommunityClient() {
-  const [posts, setPosts] = useState<CommunityPost[]>(MOCK_POSTS);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState<string>('ALL');
   const [activePostId, setActivePostId] = useState<string | null>(null);
 
@@ -31,6 +34,25 @@ export function CommunityClient() {
 
   // Comment input state
   const [commentText, setCommentText] = useState('');
+
+  useEffect(() => {
+    async function loadPosts() {
+      try {
+        const data = await getCommunityPosts();
+        if (data && data.length > 0) {
+          setPosts(data);
+        } else {
+          setPosts(MOCK_POSTS);
+        }
+      } catch (err) {
+        console.error('Failed to load community posts:', err);
+        setPosts(MOCK_POSTS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPosts();
+  }, []);
 
   const handleVote = (postId: string, type: 'up' | 'down') => {
     setPosts(prev =>
@@ -47,55 +69,72 @@ export function CommunityClient() {
     );
   };
 
-  const handleCreatePost = (e: React.FormEvent) => {
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newBody.trim()) return;
 
-    const created: CommunityPost = {
-      id: 'post-' + Date.now(),
+    const created: Omit<CommunityPost, 'id' | 'created_at'> = {
       title: newTitle,
       body: newBody,
       user_name: 'Anuraj Trader',
       user_avatar: 'AT',
       is_verified: true,
       firm_tag: newFirmTag,
-      category_tag: newTag,
+      category_tag: newTag as any,
       upvotes: 1,
       downvotes: 0,
       views: 12,
       comments_count: 0,
-      created_at: new Date().toISOString(),
-      comments: [],
     };
 
-    setPosts([created, ...posts]);
+    try {
+      const id = await createCommunityPost(created);
+      setPosts([{ id, created_at: new Date().toISOString(), ...created } as any, ...posts]);
+    } catch (err) {
+      console.error('Failed to create post:', err);
+      // Fallback
+      setPosts([{ id: 'post-' + Date.now(), created_at: new Date().toISOString(), ...created } as any, ...posts]);
+    }
+
     setIsCreatingPost(false);
     setNewTitle('');
     setNewBody('');
   };
 
-  const handleAddComment = (postId: string) => {
+  const handleAddComment = async (postId: string) => {
     if (!commentText.trim()) return;
 
-    setPosts(prev =>
-      prev.map(p => {
-        if (p.id === postId) {
-          const newComment = {
-            id: 'c-' + Date.now(),
-            user_name: 'Anuraj Trader',
-            content: commentText,
-            created_at: new Date().toISOString(),
-            upvotes: 0,
-          };
-          return {
-            ...p,
-            comments_count: p.comments_count + 1,
-            comments: [...(p.comments || []), newComment],
-          };
-        }
-        return p;
-      })
-    );
+    const newComment = {
+      user_name: 'Anuraj Trader',
+      content: commentText,
+    };
+
+    try {
+      await addCommunityComment(postId, newComment);
+      
+      setPosts(prev =>
+        prev.map(p => {
+          if (p.id === postId) {
+            const fullComment = {
+              id: 'c-' + Date.now(),
+              user_name: 'Anuraj Trader',
+              content: commentText,
+              created_at: new Date().toISOString().split('T')[0],
+              upvotes: 0,
+            };
+            return {
+              ...p,
+              comments_count: p.comments_count + 1,
+              comments: [...(p.comments || []), fullComment],
+            };
+          }
+          return p;
+        })
+      );
+    } catch (err) {
+      console.error('Failed to post comment:', err);
+    }
+    
     setCommentText('');
   };
 
@@ -103,6 +142,15 @@ export function CommunityClient() {
     if (selectedTag !== 'ALL' && p.category_tag !== selectedTag) return false;
     return true;
   });
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading community forums...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">

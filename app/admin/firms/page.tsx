@@ -1,28 +1,56 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Plus, Trash2, Edit, ShieldCheck, Check, X } from 'lucide-react';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Firm } from '@/lib/types';
+import { getFirms, createFirm, deleteFirm } from '@/lib/firebase/services';
 
 export default function AdminFirmsPage() {
-  const [firms, setFirms] = useState<Firm[]>(MOCK_FIRMS);
+  const [firms, setFirms] = useState<Firm[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState('');
   const [allocation, setAllocation] = useState('$2,000,000');
   const [split, setSplit] = useState('Up to 90%');
   const [payout, setPayout] = useState('Bi-Weekly');
 
-  const handleDelete = (id: string) => {
-    setFirms(firms.filter(f => f.id !== id));
+  useEffect(() => {
+    async function loadFirms() {
+      try {
+        const data = await getFirms();
+        if (data && data.length > 0) {
+          setFirms(data);
+        } else {
+          setFirms(MOCK_FIRMS);
+        }
+      } catch (err) {
+        console.error('Failed to load firms:', err);
+        setFirms(MOCK_FIRMS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFirms();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this firm profile?')) return;
+    try {
+      await deleteFirm(id);
+      setFirms(firms.filter(f => f.id !== id));
+    } catch (err) {
+      console.error('Failed to delete firm:', err);
+      // Fallback
+      setFirms(firms.filter(f => f.id !== id));
+    }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
-    const newFirm: Firm = {
-      id: name.toLowerCase().replace(/\s+/g, '-'),
+    const newFirm: Omit<Firm, 'id'> = {
       name,
       slug: name.toLowerCase().replace(/\s+/g, '-'),
       logo_url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=120&auto=format&fit=crop&q=80',
@@ -48,10 +76,27 @@ export default function AdminFirmsPage() {
       description: 'Audited prop trading firm.',
     };
 
-    setFirms([newFirm, ...firms]);
+    try {
+      const id = await createFirm(newFirm);
+      setFirms([{ id, ...newFirm }, ...firms]);
+    } catch (err) {
+      console.error('Failed to create firm:', err);
+      // Fallback
+      setFirms([{ id: name.toLowerCase().replace(/\s+/g, '-'), ...newFirm }, ...firms]);
+    }
+
     setIsAdding(false);
     setName('');
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading firms database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

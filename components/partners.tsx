@@ -8,6 +8,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { useState, useEffect } from "react";
+import { getPartnerLogos } from "@/lib/firebase/services";
+
 export default function Partners() {
   const verifiedFirms = [
     {
@@ -40,6 +43,27 @@ export default function Partners() {
     },
   ];
 
+  const [partners, setPartners] = useState<any[]>(verifiedFirms);
+
+  useEffect(() => {
+    async function loadPartners() {
+      try {
+        const data = await getPartnerLogos();
+        if (data && data.length > 0) {
+          // Map Firebase document format to logo/name
+          const mapped = data.map(item => ({
+            name: item.name,
+            logo: item.logo || item.logo_url
+          }));
+          setPartners(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to load partner logos:', err);
+      }
+    }
+    loadPartners();
+  }, []);
+
   return (
     <section className="max-w-6xl w-full mx-auto px-4 py-16 sm:py-20 gap-10 md:px-8 flex flex-col justify-center items-center text-center bg-transparent">
       <motion.div
@@ -59,7 +83,7 @@ export default function Partners() {
       </motion.div>
       <div className="w-full grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-6 sm:gap-8 place-items-center items-center justify-center">
         <TooltipProvider>
-          {verifiedFirms.map((firm, index) => (
+          {partners.map((firm, index) => (
             <Tooltip key={firm.name}>
               <TooltipTrigger asChild>
                 <div className="shrink-0 p-1.5 flex items-center justify-center">

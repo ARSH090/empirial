@@ -1,15 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Gift, Sparkles, CheckCircle2, Trophy, ArrowRight, ShieldCheck } from 'lucide-react';
 import { MOCK_REWARDS } from '@/lib/data/loyalty-data';
 import { LoyaltyReward } from '@/lib/types';
 import { openAuthModal } from '@/lib/utils/auth-store';
+import { getLoyaltyRewards } from '@/lib/firebase/services';
 
 export default function LoyaltyPage() {
   const [points, setPoints] = useState(3450);
   const [claimedRewards, setClaimedRewards] = useState<string[]>([]);
-  const [rewardsList, setRewardsList] = useState<LoyaltyReward[]>(MOCK_REWARDS);
+  const [rewardsList, setRewardsList] = useState<LoyaltyReward[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadRewards() {
+      try {
+        const data = await getLoyaltyRewards();
+        if (data && data.length > 0) {
+          setRewardsList(data);
+        } else {
+          setRewardsList(MOCK_REWARDS);
+        }
+      } catch (err) {
+        console.error('Failed to load loyalty rewards:', err);
+        setRewardsList(MOCK_REWARDS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadRewards();
+  }, []);
 
   const handleClaim = (reward: LoyaltyReward) => {
     if (points < reward.points_cost) {
@@ -19,6 +40,15 @@ export default function LoyaltyPage() {
     setPoints(points - reward.points_cost);
     setClaimedRewards([...claimedRewards, reward.id]);
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading rewards catalog...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">

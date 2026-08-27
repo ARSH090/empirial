@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
 import { Deal } from '@/lib/types';
+import { getDeals } from '@/lib/firebase/services';
+import { useEffect } from 'react';
 import {
   Tooltip,
   TooltipContent,
@@ -36,6 +38,8 @@ import {
 type OfferFilterType = 'all' | 'bogo' | 'cashback' | 'refund' | 'discount';
 
 export function DealsClient() {
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [selectedFirmType, setSelectedFirmType] = useState<string>('all');
   const [selectedOfferType, setSelectedOfferType] = useState<OfferFilterType>('all');
@@ -45,6 +49,25 @@ export function DealsClient() {
   const [hasCopiedCodes, setHasCopiedCodes] = useState<Record<string, boolean>>({});
   const [shakingDealId, setShakingDealId] = useState<string | null>(null);
   const [warningDealId, setWarningDealId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadDeals() {
+      try {
+        const data = await getDeals();
+        if (data && data.length > 0) {
+          setDeals(data);
+        } else {
+          setDeals(MOCK_DEALS);
+        }
+      } catch (err) {
+        console.error('Failed to load deals:', err);
+        setDeals(MOCK_DEALS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDeals();
+  }, []);
 
   const handleCopyCode = (code: string, dealId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -84,7 +107,7 @@ export function DealsClient() {
 
   // Filtered Deals
   const filteredDeals = useMemo(() => {
-    return MOCK_DEALS.filter((deal) => {
+    return deals.filter((deal) => {
       // 1. Search Query
       if (query) {
         const q = query.toLowerCase();
@@ -128,6 +151,15 @@ export function DealsClient() {
     futures: 'Firm Type: Futures',
     crypto: 'Firm Type: Crypto',
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading active deals catalogue...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen w-full overflow-x-clip bg-background text-foreground transition-colors duration-200">

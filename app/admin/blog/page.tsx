@@ -1,27 +1,55 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Trash2, Edit } from 'lucide-react';
 import { MOCK_BLOG_POSTS } from '@/lib/data/blog-data';
 import { BlogPost } from '@/lib/types';
+import { getBlogPosts, createBlogPost, deleteBlogPost } from '@/lib/firebase/services';
 
 export default function AdminBlogPage() {
-  const [posts, setPosts] = useState<BlogPost[]>(MOCK_BLOG_POSTS);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Strategy & Risk');
   const [excerpt, setExcerpt] = useState('');
 
-  const handleDelete = (id: string) => {
-    setPosts(posts.filter(p => p.id !== id));
+  useEffect(() => {
+    async function loadPosts() {
+      try {
+        const data = await getBlogPosts();
+        if (data && data.length > 0) {
+          setPosts(data);
+        } else {
+          setPosts(MOCK_BLOG_POSTS);
+        }
+      } catch (err) {
+        console.error('Failed to load posts:', err);
+        setPosts(MOCK_BLOG_POSTS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPosts();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this article?')) return;
+    try {
+      await deleteBlogPost(id);
+      setPosts(posts.filter(p => p.id !== id));
+    } catch (err) {
+      console.error('Failed to delete post:', err);
+      // Fallback
+      setPosts(posts.filter(p => p.id !== id));
+    }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
 
-    const newPost: BlogPost = {
-      id: 'blog-' + Date.now(),
+    const newPost: Omit<BlogPost, 'id'> = {
       slug: title.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '-'),
       title,
       excerpt,
@@ -37,11 +65,28 @@ export default function AdminBlogPage() {
       cover_image: '',
     };
 
-    setPosts([newPost, ...posts]);
+    try {
+      const id = await createBlogPost(newPost);
+      setPosts([{ id, ...newPost }, ...posts]);
+    } catch (err) {
+      console.error('Failed to create post:', err);
+      // Fallback
+      setPosts([{ id: 'blog-' + Date.now(), ...newPost }, ...posts]);
+    }
+
     setIsAdding(false);
     setTitle('');
     setExcerpt('');
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading blog posts...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

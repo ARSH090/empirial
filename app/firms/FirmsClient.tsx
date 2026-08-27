@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Firm } from '@/lib/types';
+import { getFirms } from '@/lib/firebase/services';
+import { useEffect } from 'react';
 import {
   Tooltip,
   TooltipContent,
@@ -50,6 +52,8 @@ const PLATFORM_DATA: Record<string, { name: string; logo: string; type: 'forex' 
 type SortMode = 'all' | 'popular' | 'best-value';
 
 export function FirmsClient() {
+  const [firms, setFirms] = useState<Firm[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('all');
@@ -66,6 +70,25 @@ export function FirmsClient() {
   const [hasCopiedCodes, setHasCopiedCodes] = useState<Record<string, boolean>>({});
   const [shakingFirmId, setShakingFirmId] = useState<string | null>(null);
   const [warningFirmId, setWarningFirmId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadFirms() {
+      try {
+        const data = await getFirms();
+        if (data && data.length > 0) {
+          setFirms(data);
+        } else {
+          setFirms(MOCK_FIRMS);
+        }
+      } catch (err) {
+        console.error('Failed to fetch firms:', err);
+        setFirms(MOCK_FIRMS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFirms();
+  }, []);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -127,7 +150,7 @@ export function FirmsClient() {
 
   // Filter and Sort Firms
   const processedFirms = useMemo(() => {
-    const list = MOCK_FIRMS.filter((f) => {
+    const list = firms.filter((f) => {
       // 1. Search Query
       if (query) {
         const q = query.toLowerCase();
@@ -180,6 +203,15 @@ export function FirmsClient() {
 
     return list;
   }, [query, selectedCategory, selectedPlatform, selectedModel, minAllocation, sortMode]);
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading audited firms matrix...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-background w-full text-foreground transition-colors duration-200 overflow-x-clip">

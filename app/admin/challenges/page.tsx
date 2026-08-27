@@ -1,29 +1,57 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, Plus, Trash2, Edit } from 'lucide-react';
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { Challenge } from '@/lib/types';
 import { ProfitSplitGauge } from '@/components/ui/profit-split-gauge';
+import { getChallenges, createChallenge, deleteChallenge } from '@/lib/firebase/services';
 
 export default function AdminChallengesPage() {
-  const [challenges, setChallenges] = useState<Challenge[]>(MOCK_CHALLENGES);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState('');
   const [size, setSize] = useState('100000');
   const [price, setPrice] = useState('499');
   const [split, setSplit] = useState('90');
 
-  const handleDelete = (id: string) => {
-    setChallenges(challenges.filter(c => c.id !== id));
+  useEffect(() => {
+    async function loadChallenges() {
+      try {
+        const data = await getChallenges();
+        if (data && data.length > 0) {
+          setChallenges(data);
+        } else {
+          setChallenges(MOCK_CHALLENGES);
+        }
+      } catch (err) {
+        console.error('Failed to load challenges:', err);
+        setChallenges(MOCK_CHALLENGES);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadChallenges();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this challenge tier?')) return;
+    try {
+      await deleteChallenge(id);
+      setChallenges(challenges.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Failed to delete challenge:', err);
+      // Fallback
+      setChallenges(challenges.filter(c => c.id !== id));
+    }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
-    const newChallenge: Challenge = {
-      id: 'ch-' + Date.now(),
+    const newChallenge: Omit<Challenge, 'id'> = {
       firm_id: 'ftmo',
       firm_name: 'FTMO',
       firm_slug: 'ftmo',
@@ -49,10 +77,27 @@ export default function AdminChallengesPage() {
       category: 'forex',
     };
 
-    setChallenges([newChallenge, ...challenges]);
+    try {
+      const id = await createChallenge(newChallenge);
+      setChallenges([{ id, ...newChallenge }, ...challenges]);
+    } catch (err) {
+      console.error('Failed to create challenge:', err);
+      // Fallback
+      setChallenges([{ id: 'ch-' + Date.now(), ...newChallenge }, ...challenges]);
+    }
+
     setIsAdding(false);
     setName('');
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading challenges database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

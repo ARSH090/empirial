@@ -1,16 +1,54 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Trash2, CheckCircle2 } from 'lucide-react';
 import { MOCK_REVIEWS } from '@/lib/data/reviews-data';
 import { Review } from '@/lib/types';
+import { getReviews, deleteReview } from '@/lib/firebase/services';
 
 export default function AdminReviewsPage() {
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleDelete = (id: string) => {
-    setReviews(reviews.filter(r => r.id !== id));
+  useEffect(() => {
+    async function loadReviews() {
+      try {
+        const data = await getReviews();
+        if (data && data.length > 0) {
+          setReviews(data);
+        } else {
+          setReviews(MOCK_REVIEWS);
+        }
+      } catch (err) {
+        console.error('Failed to load reviews:', err);
+        setReviews(MOCK_REVIEWS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadReviews();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this review?')) return;
+    try {
+      await deleteReview(id);
+      setReviews(reviews.filter(r => r.id !== id));
+    } catch (err) {
+      console.error('Failed to delete review:', err);
+      // Fallback
+      setReviews(reviews.filter(r => r.id !== id));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading reviews database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

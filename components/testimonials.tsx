@@ -1,14 +1,34 @@
-"use client";
-
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 export default function Testimonials() {
   const [showAll, setShowAll] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [testimonials, setTestimonials] = useState<any[]>([]);
   const visibleCount = isMobile ? 2 : 6;
-  const testimonials = [
+
+  useEffect(() => {
+    async function loadTestimonials() {
+      if (!db) return;
+      try {
+        const snap = await getDocs(collection(db, 'testimonials'));
+        if (!snap.empty) {
+          setTestimonials(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else {
+          setTestimonials(DEFAULT_TESTIMONIALS);
+        }
+      } catch (err) {
+        console.error('Failed to load testimonials:', err);
+        setTestimonials(DEFAULT_TESTIMONIALS);
+      }
+    }
+    loadTestimonials();
+  }, []);
+
+  const DEFAULT_TESTIMONIALS = [
     {
       name: "Sarah Chen",
       role: "CEO at TechStart",
@@ -162,7 +182,7 @@ export default function Testimonials() {
                       <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-linear-to-br from-primary/20 to-primary/10 text-xs font-medium sm:h-10 sm:w-10 sm:text-sm">
                         {testimonial.name
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")}
                       </div>
                       <div className="min-w-0">

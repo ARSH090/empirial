@@ -3,14 +3,46 @@
 import React, { useState } from 'react';
 import { Activity, CheckCircle2 } from 'lucide-react';
 import { MOCK_SPREADS } from '@/lib/data/spreads-data';
+import { getBrokerSpreads } from '@/lib/firebase/services';
+import { useEffect } from 'react';
 
 export function SpreadsClient() {
+  const [spreads, setSpreads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedPair, setSelectedPair] = useState<string>('all');
 
-  const filteredSpreads = MOCK_SPREADS.filter((s) => {
+  useEffect(() => {
+    async function loadSpreads() {
+      try {
+        const data = await getBrokerSpreads();
+        if (data && data.length > 0) {
+          setSpreads(data);
+        } else {
+          setSpreads(MOCK_SPREADS);
+        }
+      } catch (err) {
+        console.error('Failed to load spreads:', err);
+        setSpreads(MOCK_SPREADS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSpreads();
+  }, []);
+
+  const filteredSpreads = spreads.filter((s) => {
     if (selectedPair !== 'all' && s.pair !== selectedPair) return false;
     return true;
   });
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading spreads matrix...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">

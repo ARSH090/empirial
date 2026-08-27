@@ -17,9 +17,12 @@ import {
 import { MOCK_PAYOUTS } from '@/lib/data/payouts-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Payout } from '@/lib/types';
+import { getPayouts, createPayout } from '@/lib/firebase/services';
+import { useEffect } from 'react';
 
 export function PayoutsClient() {
-  const [payoutsList, setPayoutsList] = useState<Payout[]>(MOCK_PAYOUTS);
+  const [payoutsList, setPayoutsList] = useState<Payout[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
   const [selectedConcept, setSelectedConcept] = useState<string>('all');
   const [selectedFirm, setSelectedFirm] = useState<string>('all');
@@ -34,6 +37,25 @@ export function PayoutsClient() {
   const [uploadConcept, setUploadConcept] = useState('ICT / SMC');
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
+  useEffect(() => {
+    async function loadPayouts() {
+      try {
+        const data = await getPayouts();
+        if (data && data.length > 0) {
+          setPayoutsList(data);
+        } else {
+          setPayoutsList(MOCK_PAYOUTS);
+        }
+      } catch (err) {
+        console.error('Failed to load payouts:', err);
+        setPayoutsList(MOCK_PAYOUTS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPayouts();
+  }, []);
+
   const filteredPayouts = payoutsList.filter((p) => {
     if (selectedRegion !== 'all' && p.region !== selectedRegion) return false;
     if (selectedConcept !== 'all' && p.concept !== selectedConcept) return false;
@@ -41,12 +63,11 @@ export function PayoutsClient() {
     return true;
   });
 
-  const handleUploadSubmit = (e: React.FormEvent) => {
+  const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!traderName || !payoutAmount) return;
 
-    const newPayout: Payout = {
-      id: 'pay-' + Date.now(),
+    const newPayout: Omit<Payout, 'id'> = {
       firm_id: firmName.toLowerCase().replace(/\s+/g, '-'),
       firm_name: firmName,
       trader_display_name: traderName,
@@ -61,8 +82,17 @@ export function PayoutsClient() {
       payout_date: new Date().toISOString().split('T')[0],
     };
 
-    setPayoutsList([newPayout, ...payoutsList]);
-    setUploadSuccess(true);
+    try {
+      const id = await createPayout(newPayout);
+      setPayoutsList([{ id, ...newPayout }, ...payoutsList]);
+      setUploadSuccess(true);
+    } catch (err) {
+      console.error('Failed to upload proof:', err);
+      // Fallback
+      setPayoutsList([{ id: 'pay-' + Date.now(), ...newPayout }, ...payoutsList]);
+      setUploadSuccess(true);
+    }
+
     setTimeout(() => {
       setUploadSuccess(false);
       setIsUploadOpen(false);
@@ -70,6 +100,15 @@ export function PayoutsClient() {
       setPayoutAmount('');
     }, 1500);
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading payouts wall...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">

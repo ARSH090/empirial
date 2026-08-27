@@ -25,6 +25,8 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Challenge } from '@/lib/types';
+import { getChallenges, getFirms } from '@/lib/firebase/services';
+import { useEffect } from 'react';
 
 // Map firm IDs to authentic uploaded local logo assets in /logos/
 const FIRM_LOGOS: Record<string, string> = {
@@ -49,6 +51,9 @@ const FIRM_LOGOS: Record<string, string> = {
 };
 
 export function ChallengesClient() {
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [firms, setFirms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
@@ -69,8 +74,33 @@ export function ChallengesClient() {
   const [shakingChallengeId, setShakingChallengeId] = useState<string | null>(null);
   const [warningChallengeId, setWarningChallengeId] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [challsData, firmsData] = await Promise.all([getChallenges(), getFirms()]);
+        if (challsData && challsData.length > 0) {
+          setChallenges(challsData);
+        } else {
+          setChallenges(MOCK_CHALLENGES);
+        }
+        if (firmsData && firmsData.length > 0) {
+          setFirms(firmsData);
+        } else {
+          setFirms(MOCK_FIRMS);
+        }
+      } catch (err) {
+        console.error('Failed to load challenges data:', err);
+        setChallenges(MOCK_CHALLENGES);
+        setFirms(MOCK_FIRMS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
   // Filter options
-  const firmOptions = useMemo(() => MOCK_FIRMS, []);
+  const firmOptions = useMemo(() => (firms.length > 0 ? firms : MOCK_FIRMS), [firms]);
   const sizeOptions = [50000, 80000, 100000, 150000, 200000];
   const stepOptions = [
     { label: '1-Step', val: 1 },
@@ -147,7 +177,7 @@ export function ChallengesClient() {
 
   // Process & Filter Challenges
   const processedChallenges = useMemo(() => {
-    let list = MOCK_CHALLENGES.filter((ch) => {
+    let list = challenges.filter((ch) => {
       // Search Query
       if (query) {
         const q = query.toLowerCase();
@@ -188,6 +218,15 @@ export function ChallengesClient() {
 
     return list;
   }, [query, selectedCategory, selectedFirms, selectedSizes, selectedSteps, sortMode]);
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading challenges matrix...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col min-h-screen bg-background text-foreground py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-200 overflow-x-clip">

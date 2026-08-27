@@ -36,6 +36,8 @@ import {
 } from 'lucide-react';
 import { MOCK_EVENTS } from '@/lib/data/events-data';
 import { Event, EventCategory, GiveawaySubCategory, EventSubCategory } from '@/lib/types';
+import { getEvents } from '@/lib/firebase/services';
+import { useEffect } from 'react';
 import {
   Tooltip,
   TooltipContent,
@@ -44,6 +46,27 @@ import {
 } from '@/components/ui/tooltip';
 
 export function EventsClient() {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        const data = await getEvents();
+        if (data && data.length > 0) {
+          setEvents(data);
+        } else {
+          setEvents(MOCK_EVENTS);
+        }
+      } catch (err) {
+        console.error('Failed to load events:', err);
+        setEvents(MOCK_EVENTS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadEvents();
+  }, []);
   // Main Category Tab: 'all' | 'giveaway' | 'event'
   const [mainCategory, setMainCategory] = useState<'all' | EventCategory>('all');
   
@@ -127,7 +150,7 @@ export function EventsClient() {
 
   // Filter and Sort Events List
   const filteredEvents = useMemo(() => {
-    let list = [...MOCK_EVENTS];
+    let list = [...events];
 
     // 1. Main Category Filter
     if (mainCategory !== 'all') {
@@ -164,12 +187,12 @@ export function EventsClient() {
     }
 
     return list;
-  }, [mainCategory, subCategory, searchQuery, giveawaySort]);
+  }, [mainCategory, subCategory, searchQuery, giveawaySort, events]);
 
   // Counts for tabs
-  const totalCount = MOCK_EVENTS.length;
-  const giveawaysCount = MOCK_EVENTS.filter((e) => e.category === 'giveaway').length;
-  const eventsCount = MOCK_EVENTS.filter((e) => e.category === 'event').length;
+  const totalCount = events.length;
+  const giveawaysCount = events.filter((e) => e.category === 'giveaway').length;
+  const eventsCount = events.filter((e) => e.category === 'event').length;
 
   // Helper for light & consistent subcategory tag colors without dark borders (Point 3)
   const getSubcategoryBadge = (subCat: string) => {
@@ -212,6 +235,15 @@ export function EventsClient() {
         };
     }
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center space-y-4 min-h-screen flex flex-col justify-center items-center">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading dynamic events grid...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col min-h-screen bg-background text-foreground py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-200 overflow-x-clip">

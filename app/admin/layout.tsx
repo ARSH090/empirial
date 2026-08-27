@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase/config';
 import {
   Shield,
   LayoutDashboard,
@@ -24,26 +27,99 @@ import {
   ArrowLeft,
   Lock,
 } from 'lucide-react';
-import { UserProfile, DEMO_ADMIN } from '@/lib/utils/auth-store';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('empirial_user');
-    if (saved) {
-      try {
-        setCurrentUser(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      // Default to DEMO_ADMIN for instant preview access
-      setCurrentUser(DEMO_ADMIN);
-      localStorage.setItem('empirial_user', JSON.stringify(DEMO_ADMIN));
+    if (!auth) {
+      setLoading(false);
+      return;
     }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          if (db) {
+            const adminDocRef = doc(db, 'admins', user.uid);
+            try {
+              const adminDoc = await getDoc(adminDocRef);
+              if (adminDoc.exists()) {
+                if (adminDoc.data().is_active === true) {
+                  setCurrentUser(user);
+                } else {
+                  console.warn('User is deactivated.');
+                  setCurrentUser(null);
+                  await signOut(auth);
+                }
+              } else if (user.email === 'admin@empirial.com' || user.email === 'admin@anurajfx.com') {
+                try {
+                  const { setDoc } = await import('firebase/firestore');
+                  await setDoc(adminDocRef, {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: 'Admin Master',
+                    role: 'super_admin',
+                    is_active: true,
+                    created_at: new Date().toISOString()
+                  });
+                } catch (writeErr) {
+                  console.warn('Failed to self-provision admin document (expected if Firestore rules restrict writes):', writeErr);
+                }
+                setCurrentUser(user);
+              } else {
+                console.warn('User is not in the admin whitelist.');
+                setCurrentUser(null);
+                await signOut(auth);
+              }
+            } catch (firestoreErr) {
+              console.warn('Firestore lookup failed (offline/network issue). Checking email whitelist fallback:', firestoreErr);
+              if (user.email === 'admin@empirial.com' || user.email === 'admin@anurajfx.com') {
+                setCurrentUser(user);
+              } else {
+                setCurrentUser(null);
+                await signOut(auth);
+              }
+            }
+          } else {
+            setCurrentUser(user);
+          }
+        } catch (err) {
+          console.error('Error verifying admin whitelist:', err);
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      if (!currentUser && pathname !== '/admin/login') {
+        router.push('/admin/login');
+      }
+    }
+  }, [currentUser, loading, pathname, router]);
+
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin" />
+        <span className="text-xs text-zinc-500 font-mono">Authenticating session...</span>
+      </div>
+    );
+  }
 
   const adminNav = [
     { name: 'Dashboard Overview', href: '/admin', icon: LayoutDashboard },
@@ -123,11 +199,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-[10px]">
               AD
             </div>
-            <div className="truncate max-w-[120px]">
-              <span className="font-bold text-white block truncate">Admin Master</span>
-              <span className="text-[10px] text-emerald-400 font-mono">Authenticated</span>
+            <div className="truncate max-w-[90px]">
+              <span className="font-bold text-white block truncate">{currentUser?.email || 'Admin'}</span>
+              <span className="text-[10px] text-emerald-400 font-mono">Verified</span>
             </div>
           </div>
+          <button 
+            onClick={async () => {
+              if (auth) {
+                await signOut(auth);
+                router.push('/admin/login');
+              }
+            }}
+            className="text-[9px] font-bold text-zinc-400 hover:text-white transition-colors uppercase bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
+          >
+            Logout
+          </button>
         </div>
       </aside>
 

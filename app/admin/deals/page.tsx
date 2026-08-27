@@ -1,27 +1,55 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tag, Plus, Trash2, Edit } from 'lucide-react';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
 import { Deal } from '@/lib/types';
+import { getDeals, createDeal, deleteDeal } from '@/lib/firebase/services';
 
 export default function AdminDealsPage() {
-  const [deals, setDeals] = useState<Deal[]>(MOCK_DEALS);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [code, setCode] = useState('');
   const [discount, setDiscount] = useState('20');
   const [label, setLabel] = useState('20% OFF Limited Time');
 
-  const handleDelete = (id: string) => {
-    setDeals(deals.filter(d => d.id !== id));
+  useEffect(() => {
+    async function loadDeals() {
+      try {
+        const data = await getDeals();
+        if (data && data.length > 0) {
+          setDeals(data);
+        } else {
+          setDeals(MOCK_DEALS);
+        }
+      } catch (err) {
+        console.error('Failed to load deals:', err);
+        setDeals(MOCK_DEALS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDeals();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this coupon code?')) return;
+    try {
+      await deleteDeal(id);
+      setDeals(deals.filter(d => d.id !== id));
+    } catch (err) {
+      console.error('Failed to delete coupon:', err);
+      // Fallback
+      setDeals(deals.filter(d => d.id !== id));
+    }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code) return;
 
-    const newDeal: Deal = {
-      id: 'deal-' + Date.now(),
+    const newDeal: Omit<Deal, 'id'> = {
       firm_id: 'ftmo',
       firm_name: 'FTMO',
       firm_slug: 'ftmo',
@@ -36,10 +64,27 @@ export default function AdminDealsPage() {
       is_verified: true,
     };
 
-    setDeals([newDeal, ...deals]);
+    try {
+      const id = await createDeal(newDeal);
+      setDeals([{ id, ...newDeal }, ...deals]);
+    } catch (err) {
+      console.error('Failed to create coupon:', err);
+      // Fallback
+      setDeals([{ id: 'deal-' + Date.now(), ...newDeal }, ...deals]);
+    }
+
     setIsAdding(false);
     setCode('');
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading coupons database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

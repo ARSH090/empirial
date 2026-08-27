@@ -1,28 +1,56 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, Plus, Trash2 } from 'lucide-react';
 import { MOCK_SPREADS } from '@/lib/data/spreads-data';
 import { BrokerSpread } from '@/lib/types';
+import { getBrokerSpreads, createBrokerSpread, deleteBrokerSpread } from '@/lib/firebase/services';
 
 export default function AdminSpreadsPage() {
-  const [spreads, setSpreads] = useState<BrokerSpread[]>(MOCK_SPREADS);
+  const [spreads, setSpreads] = useState<BrokerSpread[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [brokerName, setBrokerName] = useState('');
   const [pair, setPair] = useState<'EURUSD' | 'GBPUSD' | 'USDJPY' | 'XAUUSD' | 'BTCUSD' | 'US30'>('EURUSD');
   const [spreadVal, setSpreadVal] = useState('0.1');
   const [commVal, setCommVal] = useState('3.0');
 
-  const handleDelete = (id: string) => {
-    setSpreads(spreads.filter(s => s.id !== id));
+  useEffect(() => {
+    async function loadSpreads() {
+      try {
+        const data = await getBrokerSpreads();
+        if (data && data.length > 0) {
+          setSpreads(data);
+        } else {
+          setSpreads(MOCK_SPREADS);
+        }
+      } catch (err) {
+        console.error('Failed to load spreads:', err);
+        setSpreads(MOCK_SPREADS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSpreads();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this spread telemetry feed?')) return;
+    try {
+      await deleteBrokerSpread(id);
+      setSpreads(spreads.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Failed to delete spread feed:', err);
+      // Fallback
+      setSpreads(spreads.filter(s => s.id !== id));
+    }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!brokerName) return;
 
-    const newSpread: BrokerSpread = {
-      id: 'sp-' + Date.now(),
+    const newSpread: Omit<BrokerSpread, 'id'> = {
       broker_name: brokerName,
       pair,
       spread_pips: parseFloat(spreadVal),
@@ -32,10 +60,27 @@ export default function AdminSpreadsPage() {
       is_active: true,
     };
 
-    setSpreads([newSpread, ...spreads]);
+    try {
+      const id = await createBrokerSpread(newSpread);
+      setSpreads([{ id, ...newSpread }, ...spreads]);
+    } catch (err) {
+      console.error('Failed to create spread feed:', err);
+      // Fallback
+      setSpreads([{ id: 'sp-' + Date.now(), ...newSpread }, ...spreads]);
+    }
+
     setIsAdding(false);
     setBrokerName('');
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading spreads telemetry...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,16 +1,31 @@
-'use client';
-
 import React from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { ArrowLeft, Clock, Calendar, User, Share2, Sparkles, ShieldCheck } from 'lucide-react';
 import { MOCK_BLOG_POSTS } from '@/lib/data/blog-data';
+import { adminDb } from '@/lib/firebase/admin';
 
-export default function BlogPostPage() {
-  const params = useParams();
-  const slug = params?.slug as string;
+interface PageProps {
+  params: Promise<{ slug: string }>;
+}
 
-  const post = MOCK_BLOG_POSTS.find((p) => p.slug === slug) || MOCK_BLOG_POSTS[0];
+export default async function BlogPostPage({ params }: PageProps) {
+  const { slug } = await params;
+  let post = MOCK_BLOG_POSTS.find((p) => p.slug === slug);
+
+  if (adminDb) {
+    try {
+      const snap = await adminDb.collection('blogPosts').where('slug', '==', slug).limit(1).get();
+      if (!snap.empty) {
+        post = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+      }
+    } catch (err) {
+      console.error('Failed to fetch blog post:', err);
+    }
+  }
+
+  if (!post) {
+    post = MOCK_BLOG_POSTS[0];
+  }
 
   return (
     <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">

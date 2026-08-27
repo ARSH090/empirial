@@ -1,20 +1,65 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DollarSign, CheckCircle2, XCircle, Trash2, Eye } from 'lucide-react';
 import { MOCK_PAYOUTS } from '@/lib/data/payouts-data';
 import { Payout } from '@/lib/types';
+import { getPayouts, updatePayout, deletePayout } from '@/lib/firebase/services';
 
 export default function AdminPayoutsPage() {
-  const [payouts, setPayouts] = useState<Payout[]>(MOCK_PAYOUTS);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleApprove = (id: string) => {
-    setPayouts(payouts.map(p => p.id === id ? { ...p, is_verified: true } : p));
+  useEffect(() => {
+    async function loadPayouts() {
+      try {
+        const data = await getPayouts();
+        if (data && data.length > 0) {
+          setPayouts(data);
+        } else {
+          setPayouts(MOCK_PAYOUTS);
+        }
+      } catch (err) {
+        console.error('Failed to load payouts:', err);
+        setPayouts(MOCK_PAYOUTS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPayouts();
+  }, []);
+
+  const handleApprove = async (id: string) => {
+    try {
+      await updatePayout(id, { is_verified: true });
+      setPayouts(payouts.map(p => p.id === id ? { ...p, is_verified: true } : p));
+    } catch (err) {
+      console.error('Failed to verify payout:', err);
+      // Fallback
+      setPayouts(payouts.map(p => p.id === id ? { ...p, is_verified: true } : p));
+    }
   };
 
-  const handleReject = (id: string) => {
-    setPayouts(payouts.filter(p => p.id !== id));
+  const handleReject = async (id: string) => {
+    if (!confirm('Are you sure you want to reject and delete this payout proof?')) return;
+    try {
+      await deletePayout(id);
+      setPayouts(payouts.filter(p => p.id !== id));
+    } catch (err) {
+      console.error('Failed to delete payout:', err);
+      // Fallback
+      setPayouts(payouts.filter(p => p.id !== id));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading payouts database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

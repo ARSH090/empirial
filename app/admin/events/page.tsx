@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Trash2, Trophy, Gift, Radio, GraduationCap, Gamepad2, Sparkles, Building2, ShieldCheck, Check } from 'lucide-react';
 import { MOCK_EVENTS } from '@/lib/data/events-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Event, EventCategory, GiveawaySubCategory, EventSubCategory, EventEntryType } from '@/lib/types';
+import { getEvents, createEvent, deleteEvent, getFirms } from '@/lib/firebase/services';
 
 export default function AdminEventsPage() {
-  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [firmsList, setFirmsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   
   // Form State
@@ -17,7 +20,7 @@ export default function AdminEventsPage() {
   const [entryType, setEntryType] = useState<EventEntryType>('free');
   const [entryFee, setEntryFee] = useState<number>(0);
   
-  // Firm Association Toggle (Requirement 3: events may or may not have firm association)
+  // Firm Association Toggle
   const [isFirmSponsored, setIsFirmSponsored] = useState(true);
   const [selectedFirmId, setSelectedFirmId] = useState<string>('nys');
   const [independentHostName, setIndependentHostName] = useState('EMPIRIAL Official');
@@ -27,7 +30,7 @@ export default function AdminEventsPage() {
   const [description, setDescription] = useState('');
   const [countdownLabel, setCountdownLabel] = useState('Starts in 7 Days');
   
-  // Discord & Participation Tasks controls (Points 1 & 2)
+  // Discord & Participation Tasks controls
   const [requiresDiscord, setRequiresDiscord] = useState(true);
   const [discordUrl, setDiscordUrl] = useState('https://discord.gg/empirial');
   const [enableTasks, setEnableTasks] = useState(true);
@@ -37,18 +40,45 @@ export default function AdminEventsPage() {
     'Submit Platform Account ID & Verification',
   ]);
 
-  const handleDelete = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id));
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [eventsData, firmsData] = await Promise.all([getEvents(), getFirms()]);
+        setEvents(eventsData.length > 0 ? eventsData : MOCK_EVENTS);
+        setFirmsList(firmsData.length > 0 ? firmsData : MOCK_FIRMS);
+        if (firmsData.length > 0) {
+          setSelectedFirmId(firmsData[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load events data:', err);
+        setEvents(MOCK_EVENTS);
+        setFirmsList(MOCK_FIRMS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    try {
+      await deleteEvent(id);
+      setEvents(events.filter((e) => e.id !== id));
+    } catch (err) {
+      console.error('Failed to delete event:', err);
+      // Fallback
+      setEvents(events.filter((e) => e.id !== id));
+    }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const firmObj = isFirmSponsored ? MOCK_FIRMS.find((f) => f.id === selectedFirmId) : undefined;
+    const firmObj = isFirmSponsored ? (firmsList.find((f) => f.id === selectedFirmId) || MOCK_FIRMS.find((f) => f.id === selectedFirmId)) : undefined;
 
-    const newEv: Event = {
-      id: 'ev-' + Date.now(),
+    const newEv: Omit<Event, 'id'> = {
       title: title.trim(),
       slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       category,
@@ -76,7 +106,6 @@ export default function AdminEventsPage() {
       description: description.trim() || 'Official prop trading opportunity.',
       requires_discord: requiresDiscord,
       discord_url: requiresDiscord ? discordUrl.trim() : undefined,
-      // If enableTasks is false or tasksList empty, registration_tasks is undefined so tasks column is omitted!
       registration_tasks: enableTasks && tasksList.length > 0
         ? tasksList.map((t, idx) => ({
             id: `t-admin-${Date.now()}-${idx}`,
@@ -87,12 +116,29 @@ export default function AdminEventsPage() {
         : undefined,
     };
 
-    setEvents([newEv, ...events]);
+    try {
+      const id = await createEvent(newEv);
+      setEvents([{ id, ...newEv }, ...events]);
+    } catch (err) {
+      console.error('Failed to create event:', err);
+      // Fallback
+      setEvents([{ id: 'ev-' + Date.now(), ...newEv }, ...events]);
+    }
+
     setIsAdding(false);
     setTitle('');
     setPosterUrl('');
     setDescription('');
   };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading events database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

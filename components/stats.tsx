@@ -1,18 +1,32 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { getSiteSettings } from "@/lib/firebase/services";
 import NumberFlow from "@number-flow/react";
 import { motion } from "framer-motion";
-import { useState } from "react";
 
 export default function Stats() {
   const [animate, setAnimate] = useState(false);
-
-  const stats = [
+  const [stats, setStats] = useState([
     { value: 50, suffix: "K+", label: "Active Traders" },
     { value: 40, suffix: "+", label: "Listed Firms" },
     { value: 12, suffix: "K+", label: "Community Reviews" },
     { value: 150, suffix: "+", label: "Active Challenges" },
-  ];
+  ]);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const settings = await getSiteSettings();
+        if (settings && settings.stats && settings.stats.length > 0) {
+          setStats(settings.stats);
+        }
+      } catch (err) {
+        console.error('Failed to load stats from Firestore:', err);
+      }
+    }
+    loadStats();
+  }, []);
 
   return (
     <section className="py-20 px-4 bg-transparent w-full">

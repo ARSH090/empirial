@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -8,26 +8,71 @@ import {
   Tag,
   DollarSign,
   Star,
-  Users,
   TrendingUp,
-  Activity,
-  ArrowRight,
-  ShieldAlert,
 } from 'lucide-react';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
 import { MOCK_PAYOUTS } from '@/lib/data/payouts-data';
 import { MOCK_REVIEWS } from '@/lib/data/reviews-data';
+import { getFirms, getChallenges, getDeals, getPayouts, getReviews } from '@/lib/firebase/services';
 
 export default function AdminOverviewPage() {
+  const [firms, setFirms] = useState<any[]>([]);
+  const [challenges, setChallenges] = useState<any[]>([]);
+  const [deals, setDeals] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const [firmsData, challData, dealData, payData, revData] = await Promise.all([
+          getFirms(),
+          getChallenges(),
+          getDeals(),
+          getPayouts(),
+          getReviews()
+        ]);
+        setFirms(firmsData.length > 0 ? firmsData : MOCK_FIRMS);
+        setChallenges(challData.length > 0 ? challData : MOCK_CHALLENGES);
+        setDeals(dealData.length > 0 ? dealData : MOCK_DEALS);
+        setPayouts(payData.length > 0 ? payData : MOCK_PAYOUTS);
+        setReviews(revData.length > 0 ? revData : MOCK_REVIEWS);
+      } catch (err) {
+        console.error('Failed to load admin overview metrics:', err);
+        setFirms(MOCK_FIRMS);
+        setChallenges(MOCK_CHALLENGES);
+        setDeals(MOCK_DEALS);
+        setPayouts(MOCK_PAYOUTS);
+        setReviews(MOCK_REVIEWS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStats();
+  }, []);
+
+  const totalPayoutsSum = payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const formattedPayoutsTotal = totalPayoutsSum > 0 ? `$${(totalPayoutsSum / 1000000).toFixed(1)}M` : '$15.2M';
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading metrics console...</p>
+      </div>
+    );
+  }
+
   const stats = [
-    { title: 'Prop Firms', count: MOCK_FIRMS.length, href: '/admin/firms', icon: Building2, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-    { title: 'Challenges Audited', count: MOCK_CHALLENGES.length, href: '/admin/challenges', icon: Trophy, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { title: 'Active Coupons', count: MOCK_DEALS.length, href: '/admin/deals', icon: Tag, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-    { title: 'Payout Proofs', count: MOCK_PAYOUTS.length, href: '/admin/payouts', icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { title: 'Trader Reviews', count: MOCK_REVIEWS.length, href: '/admin/reviews', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-    { title: 'Audited Payouts Total', count: '$15.2M', href: '/admin/payouts', icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { title: 'Prop Firms', count: firms.length, href: '/admin/firms', icon: Building2, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+    { title: 'Challenges Audited', count: challenges.length, href: '/admin/challenges', icon: Trophy, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { title: 'Active Coupons', count: deals.length, href: '/admin/deals', icon: Tag, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { title: 'Payout Proofs', count: payouts.length, href: '/admin/payouts', icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { title: 'Trader Reviews', count: reviews.length, href: '/admin/reviews', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+    { title: 'Audited Payouts Total', count: formattedPayoutsTotal, href: '/admin/payouts', icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
   ];
 
   return (
@@ -80,7 +125,7 @@ export default function AdminOverviewPage() {
             </Link>
           </div>
           <div className="space-y-2">
-            {MOCK_FIRMS.slice(0, 4).map(f => (
+            {firms.slice(0, 4).map(f => (
               <div key={f.id} className="flex justify-between items-center p-3 rounded-xl bg-elevation-card border border-white/5 text-xs">
                 <span className="font-bold text-white">{f.name}</span>
                 <span className="font-mono text-emerald-400">{f.profit_split_custom}</span>
@@ -101,7 +146,7 @@ export default function AdminOverviewPage() {
             </Link>
           </div>
           <div className="space-y-2">
-            {MOCK_PAYOUTS.slice(0, 4).map(p => (
+            {payouts.slice(0, 4).map(p => (
               <div key={p.id} className="flex justify-between items-center p-3 rounded-xl bg-elevation-card border border-white/5 text-xs">
                 <span className="text-white font-semibold">{p.trader_display_name} ({p.firm_name})</span>
                 <span className="font-mono font-bold text-emerald-400">${p.amount.toLocaleString()}</span>

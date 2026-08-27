@@ -2,13 +2,26 @@ import React from 'react';
 import Link from 'next/link';
 import { BookOpen, Clock, ArrowRight, User } from 'lucide-react';
 import { MOCK_BLOG_POSTS } from '@/lib/data/blog-data';
+import { adminDb } from '@/lib/firebase/admin';
 
 export const metadata = {
   title: 'Prop Trading Educational Intelligence & Guides | EMPIRIAL 2.0',
   description: 'In-depth trading guides, mathematical drawdown preservation, consistency rule breakdowns, and psychological frameworks.',
 };
 
-export default function BlogPage() {
+export default async function BlogPage() {
+  let posts = MOCK_BLOG_POSTS;
+
+  if (adminDb) {
+    try {
+      const snap = await adminDb.collection('blogPosts').orderBy('published_at', 'desc').get();
+      if (!snap.empty) {
+        posts = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as any;
+      }
+    } catch (err) {
+      console.error('Failed to fetch blog posts from Firestore:', err);
+    }
+  }
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header */}
@@ -27,7 +40,7 @@ export default function BlogPage() {
 
       {/* Blog Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {MOCK_BLOG_POSTS.map((post) => (
+        {posts.map((post) => (
           <article
             key={post.id}
             className="bg-elevation-surface border border-white/10 hover:border-cyan-500/40 rounded-3xl p-6 sm:p-8 flex flex-col justify-between space-y-6 transition-all hover:shadow-2xl hover:shadow-cyan-950/20 group"
