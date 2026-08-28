@@ -2,9 +2,11 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getPricingPlans } from "@/lib/firebase/services";
 
 export default function Pricing() {
+  const router = useRouter();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [hasCopiedCodes, setHasCopiedCodes] = useState<Record<string, boolean>>({});
   const [shakingFirmId, setShakingFirmId] = useState<string | null>(null);
@@ -41,10 +43,8 @@ export default function Pricing() {
       drawdownMax: "6%",
       lossType: "Trailing",
       profitSplit: "80%",
-      originalPrice: "$149",
-      offeredPrice: "$119",
+      discount: "20% DISCOUNT",
       code: "EMPIRE",
-      buyUrl: "https://discord.gg/ww4dkeeZdp",
     },
     {
       id: "ck-capital",
@@ -58,10 +58,8 @@ export default function Pricing() {
       drawdownMax: "10%",
       lossType: "Static",
       profitSplit: "85%",
-      originalPrice: "$357",
-      offeredPrice: "$257",
+      discount: "28% DISCOUNT",
       code: "EMPIRE",
-      buyUrl: "https://discord.gg/ww4dkeeZdp",
     },
     {
       id: "alpha-capital",
@@ -75,10 +73,8 @@ export default function Pricing() {
       drawdownMax: "8%",
       lossType: "Static",
       profitSplit: "80%",
-      originalPrice: "$499",
-      offeredPrice: "$399",
+      discount: "20% DISCOUNT",
       code: "EMPIRE",
-      buyUrl: "https://discord.gg/ww4dkeeZdp",
     },
   ];
 
@@ -110,10 +106,8 @@ export default function Pricing() {
       return;
     }
 
-    // If code copied, open firm URL
-    if (typeof window !== "undefined") {
-      window.open(firm.buyUrl, "_blank", "noopener,noreferrer");
-    }
+    // If code copied, redirect to Challenges page with already selected firm filter
+    router.push(`/challenges?firm=${encodeURIComponent(firm.id)}`);
   };
 
   return (
@@ -128,7 +122,7 @@ export default function Pricing() {
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="mb-12 flex flex-col gap-3 text-center sm:mb-16"
       >
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground">
+        <h2 className="text-xl font-semibold sm:text-2xl bg-gradient-to-b from-foreground to-muted-foreground text-transparent bg-clip-text">
           Choose Your Plan
         </h2>
         <p className="mx-auto max-w-xl text-muted-foreground text-center text-sm sm:text-base">
@@ -236,13 +230,13 @@ export default function Pricing() {
                   </div>
                 </div>
 
-                {/* Price Display: Original Strikethrough -> Offered Price */}
-                <div className="mt-5 pt-3 border-t border-zinc-200/70 dark:border-border/70 flex items-center justify-center gap-2.5">
-                  <span className="text-sm font-semibold text-muted-foreground line-through decoration-zinc-400">
-                    {firm.originalPrice}
-                  </span>
+                {/* Discount Display: XX% DISCOUNT with ( Max you can get ) */}
+                <div className="mt-5 pt-3 border-t border-zinc-200/70 dark:border-border/70 flex flex-col items-center justify-center text-center">
                   <span className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
-                    {firm.offeredPrice}
+                    {firm.discount}
+                  </span>
+                  <span className="mt-0.5 text-xs text-muted-foreground font-medium">
+                    ( Max you can get )
                   </span>
                 </div>
               </div>

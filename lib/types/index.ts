@@ -281,3 +281,56 @@ export interface BlogPost {
   published_at: string;
   cover_image: string;
 }
+
+export type SocialCategory =
+  | 'PROP FIRM OFFERS'
+  | 'TRADING KNOWLEDGE'
+  | 'TRADING PSYCHOLOGY'
+  | 'ACCOUNT RULES'
+  | 'TRADER INSIGHTS'
+  | 'COMMUNITY';
+
+export interface SocialLinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  domain?: string;
+  image?: string;
+}
+
+export interface SocialPost {
+  id: string;
+  author_id: string;
+  author_name: string;
+  author_avatar?: string;
+  author_handle: string;
+  is_verified: boolean;
+  author_role: 'firm' | 'trader' | 'analyst' | 'admin';
+  firm_badge?: string;
+  firm_logo?: string;
+  content: string;
+  media_urls?: string[];
+  link_preview?: SocialLinkPreview;
+  category: SocialCategory;
+  upvotes: number;
+  downvotes: number;
+  upvoted_by: string[];
+  downvoted_by: string[];
+  created_at: string;
+  is_pinned?: boolean;
+}
+
+export interface VerificationApplication {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  user_avatar?: string;
+  trading_experience: string;
+  category: 'Prop Firm Official' | 'Funded Trader' | 'Market Analyst' | 'Educator';
+  proof_links?: string;
+  applied_at: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string;
+}
+

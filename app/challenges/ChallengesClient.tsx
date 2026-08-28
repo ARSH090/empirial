@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -26,7 +27,6 @@ import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Challenge } from '@/lib/types';
 import { getChallenges, getFirms } from '@/lib/firebase/services';
-import { useEffect } from 'react';
 
 // Map firm IDs to authentic uploaded local logo assets in /logos/
 const FIRM_LOGOS: Record<string, string> = {
@@ -54,11 +54,29 @@ export function ChallengesClient() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [firms, setFirms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const firmParam = searchParams.get('firm');
+
   const [query, setQuery] = useState('');
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   // Multi-select state
-  const [selectedFirms, setSelectedFirms] = useState<string[]>([]);
+  const [selectedFirms, setSelectedFirms] = useState<string[]>(() => {
+    if (firmParam) {
+      const matched = MOCK_FIRMS.find((f) => f.id === firmParam || f.slug === firmParam);
+      return [matched ? matched.id : firmParam];
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (firmParam) {
+      const matched = MOCK_FIRMS.find((f) => f.id === firmParam || f.slug === firmParam);
+      const targetId = matched ? matched.id : firmParam;
+      setSelectedFirms((prev) => (prev.includes(targetId) ? prev : [targetId]));
+    }
+  }, [firmParam]);
+
   const [selectedSizes, setSelectedSizes] = useState<number[]>([]);
   const [selectedSteps, setSelectedSteps] = useState<number[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');

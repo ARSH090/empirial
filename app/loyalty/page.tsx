@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Gift, Sparkles, CheckCircle2, Trophy, ArrowRight, ShieldCheck } from 'lucide-react';
 import { MOCK_REWARDS } from '@/lib/data/loyalty-data';
 import { LoyaltyReward } from '@/lib/types';
-import { openAuthModal } from '@/lib/utils/auth-store';
+import { getStoredUser, openAuthModal } from '@/lib/utils/auth-store';
 import { getLoyaltyRewards } from '@/lib/firebase/services';
 
 export default function LoyaltyPage() {
@@ -33,6 +33,11 @@ export default function LoyaltyPage() {
   }, []);
 
   const handleClaim = (reward: LoyaltyReward) => {
+    const user = getStoredUser();
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     if (points < reward.points_cost) {
       alert(`You need ${reward.points_cost - points} more points to claim this reward!`);
       return;

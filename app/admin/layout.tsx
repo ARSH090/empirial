@@ -123,6 +123,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const adminNav = [
     { name: 'Dashboard Overview', href: '/admin', icon: LayoutDashboard },
+    { name: 'Trader Social & Verification', href: '/admin/social', icon: Shield, badge: 'Social' },
     { name: 'Prop Firms Directory', href: '/admin/firms', icon: Building2 },
     { name: 'Evaluation Challenges', href: '/admin/challenges', icon: Trophy },
     { name: 'Discount Promo Deals', href: '/admin/deals', icon: Tag },

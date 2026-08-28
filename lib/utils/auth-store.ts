@@ -72,6 +72,11 @@ export interface UserProfile {
   country?: string;
   discordHandle?: string;
   bio?: string;
+  is_verified?: boolean;
+  verification_status?: 'not_applied' | 'pending' | 'approved' | 'rejected';
+  following_ids?: string[];
+  firm_badge?: string;
+  firm_logo?: string;
 }
 
 export const DEFAULT_PURCHASED_ACCOUNTS: UserPurchasedAccount[] = [
@@ -160,6 +165,9 @@ export const DEMO_ADMIN: UserProfile = {
   country: 'Global',
   discordHandle: '@empirial_admin',
   bio: 'EMPIRIAL 2.0 System Administrator and Verification Desk.',
+  is_verified: true,
+  verification_status: 'approved',
+  following_ids: ['author-firm-1', 'author-firm-2'],
 };
 
 export const DEMO_TRADER: UserProfile = {
@@ -175,7 +183,11 @@ export const DEMO_TRADER: UserProfile = {
   country: 'India',
   discordHandle: '@anuraj_trader',
   bio: 'Algorithmic SMC and Price Action Trader. Focusing on Gold & US30 prop challenges.',
+  is_verified: true,
+  verification_status: 'approved',
+  following_ids: ['author-firm-1', 'author-trader-2'],
 };
+
 
 export const INITIAL_USER_REVIEWS: UserProfileReview[] = [
   {
