@@ -8,12 +8,27 @@ let adminAuth: Auth;
 if (getApps().length === 0) {
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-      initializeApp({
-        credential: cert(serviceAccount),
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      });
-    } else if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      let serviceAccount;
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      } catch (jsonErr) {
+        console.error('Firebase Admin: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:', jsonErr);
+      }
+
+      if (serviceAccount && serviceAccount.private_key && serviceAccount.client_email) {
+        initializeApp({
+          credential: cert(serviceAccount),
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        });
+        console.log('Firebase Admin initialized successfully with Service Account Key.');
+      } else {
+        console.warn('Firebase Admin: FIREBASE_SERVICE_ACCOUNT_KEY has empty/missing private_key or client_email.');
+      }
+    } else if (
+      process.env.FIREBASE_CLIENT_EMAIL && 
+      process.env.FIREBASE_PRIVATE_KEY && 
+      process.env.FIREBASE_PRIVATE_KEY.trim() !== ''
+    ) {
       initializeApp({
         credential: cert({
           projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -22,7 +37,11 @@ if (getApps().length === 0) {
         }),
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       });
+      console.log('Firebase Admin initialized successfully with client/private key variables.');
+    } else if (process.env.VERCEL) {
+      console.warn('Firebase Admin: Running on Vercel but no credentials provided. Skipping initialization.');
     } else {
+      // Local/GCP fallback using Application Default Credentials
       initializeApp({
         projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
@@ -38,3 +57,4 @@ adminDb = adminApp ? getFirestore(adminApp) : (null as any);
 adminAuth = adminApp ? getAuth(adminApp) : (null as any);
 
 export { adminDb, adminAuth, adminApp };
+
