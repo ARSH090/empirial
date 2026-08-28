@@ -509,15 +509,6 @@ export function ProfileClient() {
                   <Mail className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="font-semibold text-foreground">{currentUser.email}</span>
                 </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{currentUser.phoneNumber || '+1 (555) 389-2049'}</span>
-                </span>
-                <span>•</span>
-                <span className="font-mono text-xs font-bold text-foreground">
-                  PASSPORT: {currentUser.traderId || 'EMP-90428'}
-                </span>
               </div>
             </div>
           </div>
