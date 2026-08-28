@@ -9,8 +9,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Authorization code is missing' }, { status: 400 });
   }
 
+  // 1. Check if Firebase Admin SDK is initialized
+  if (!adminAuth) {
+    return NextResponse.json({
+      error: 'Firebase Admin SDK is not initialized.',
+      details: 'Please ensure that FIREBASE_SERVICE_ACCOUNT_KEY (containing valid "private_key" and "client_email") is set in your Vercel or local environment variables.'
+    }, { status: 500 });
+  }
+
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+  
+  if (!clientId || !clientSecret) {
+    return NextResponse.json({
+      error: 'Discord OAuth credentials missing.',
+      details: 'Please ensure DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET are configured in your environment variables.'
+    }, { status: 500 });
+  }
   
   // Construct redirect URI dynamically to match the current running environment (dev vs production Vercel)
   const host = request.headers.get('host') || 'localhost:3000';
@@ -18,12 +33,12 @@ export async function GET(request: NextRequest) {
   const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
 
   try {
-    // 1. Exchange OAuth2 authorization code for an access token
+    // 2. Exchange OAuth2 authorization code for an access token
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       body: new URLSearchParams({
-        client_id: clientId || '',
-        client_secret: clientSecret || '',
+        client_id: clientId,
+        client_secret: clientSecret,
         grant_type: 'authorization_code',
         code,
         redirect_uri: redirectUri,
@@ -36,13 +51,16 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error('Discord Token Exchange failed:', errorText);
-      return NextResponse.redirect(new URL(`/?auth_error=token_exchange_failed`, request.url));
+      return NextResponse.json({
+        error: 'Discord Token Exchange failed',
+        details: errorText
+      }, { status: 400 });
     }
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // 2. Fetch the Discord user's profile information
+    // 3. Fetch the Discord user's profile information
     const userResponse = await fetch('https://discord.com/api/users/@me', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -50,8 +68,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!userResponse.ok) {
-      console.error('Failed to fetch Discord user profile');
-      return NextResponse.redirect(new URL(`/?auth_error=profile_fetch_failed`, request.url));
+      const errorText = await userResponse.text();
+      console.error('Failed to fetch Discord user profile:', errorText);
+      return NextResponse.json({
+        error: 'Failed to fetch Discord user profile',
+        details: errorText
+      }, { status: 400 });
     }
 
     const userData = await userResponse.json();
@@ -59,14 +81,14 @@ export async function GET(request: NextRequest) {
     const email = userData.email || null;
     const displayName = userData.global_name || userData.username;
     
-    // Construct avatar URL if avatar exists, fallback to default Discord avatar path
+    // Construct avatar URL if avatar exists
     const avatarUrl = userData.avatar
       ? `https://cdn.discordapp.com/avatars/${discordUserId}/${userData.avatar}.png`
       : `https://cdn.discordapp.com/embed/avatars/${parseInt(discordUserId) % 5}.png`;
 
     const uid = `discord:${discordUserId}`;
 
-    // 3. Create or retrieve the Firebase User account
+    // 4. Create or retrieve the Firebase User account
     let userRecord;
     try {
       userRecord = await adminAuth.getUser(uid);
@@ -90,16 +112,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4. Generate a custom Firebase Auth Token
+    // 5. Generate a custom Firebase Auth Token
     const customToken = await adminAuth.createCustomToken(uid);
 
-    // 5. Redirect back to the home page with the token
+    // 6. Redirect back to the home page with the token
     const redirectUrl = new URL('/', request.url);
     redirectUrl.searchParams.set('discord_token', customToken);
     
     return NextResponse.redirect(redirectUrl);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Unexpected Discord Auth error:', error);
-    return NextResponse.redirect(new URL(`/?auth_error=server_error`, request.url));
+    return NextResponse.json({
+      error: 'Unexpected server error during Discord OAuth',
+      message: error?.message || String(error),
+      stack: error?.stack || null
+    }, { status: 500 });
   }
 }
