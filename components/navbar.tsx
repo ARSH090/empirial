@@ -29,14 +29,58 @@ export default function NavBar() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    // Check initial user from localStorage or set default trader
-    const user = getStoredUser();
-    if (user) {
-      setCurrentUser(user);
+    // Check if Discord custom token is returned in search params
+    const urlParams = new URLSearchParams(window.location.search);
+    const discordToken = urlParams.get("discord_token");
+
+    if (discordToken) {
+      // Clean token from the URL immediately
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+
+      // Perform custom token login
+      (async () => {
+        try {
+          const { signInWithCustomToken } = await import("firebase/auth");
+          const { auth } = await import("@/lib/firebase/config");
+          const { DEFAULT_PURCHASED_ACCOUNTS } = await import("@/lib/utils/auth-store");
+          
+          const result = await signInWithCustomToken(auth, discordToken);
+          const user = result.user;
+
+          const userProfile: UserProfile = {
+            uid: user.uid,
+            displayName: user.displayName || "Discord Trader",
+            email: user.email || "trader@discord.gg",
+            phoneNumber: "+1 (555) 812-9901",
+            role: "trader",
+            traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
+            avatarUrl: user.photoURL || undefined,
+            points: 2500,
+            accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
+            country: "Global",
+            discordHandle: user.displayName ? `@${user.displayName.toLowerCase().replace(/\s+/g, "_")}` : undefined,
+            bio: "Connected via Discord. Community member and trader on EMPIRIAL 2.0.",
+          };
+          saveUser(userProfile);
+          setCurrentUser(userProfile);
+        } catch (err) {
+          console.error("Failed to sign in with Discord custom token:", err);
+        }
+      })();
     } else {
-      // Default to DEMO_TRADER so user immediately experiences connected profile state
-      saveUser(DEMO_TRADER);
-      setCurrentUser(DEMO_TRADER);
+      // Check initial user from localStorage or set default trader
+      const user = getStoredUser();
+      const isLoggedOut = localStorage.getItem("empirial_logged_out") === "true";
+      if (user) {
+        setCurrentUser(user);
+      } else if (!isLoggedOut) {
+        // Default to DEMO_TRADER so user immediately experiences connected profile state
+        saveUser(DEMO_TRADER);
+        setCurrentUser(DEMO_TRADER);
+      } else {
+        setCurrentUser(null);
+      }
     }
 
     const handleAuthChange = (e: CustomEvent) => {

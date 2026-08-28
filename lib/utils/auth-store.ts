@@ -329,6 +329,7 @@ export function getStoredUser(): UserProfile | null {
 export function saveUser(user: UserProfile) {
   if (typeof window === 'undefined') return;
   localStorage.setItem('empirial_user', JSON.stringify(user));
+  localStorage.removeItem('empirial_logged_out');
   window.dispatchEvent(new CustomEvent('auth-changed', { detail: user }));
 }
 
@@ -341,6 +342,15 @@ export function loginAsDemoTrader(): UserProfile {
 export function logoutUser() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('empirial_user');
+  localStorage.setItem('empirial_logged_out', 'true');
+  
+  // Trigger Firebase signOut in the background
+  import('@/lib/firebase/config').then(({ auth }) => {
+    import('firebase/auth').then(({ signOut }) => {
+      signOut(auth).catch((err) => console.error('Firebase Auth sign out error:', err));
+    });
+  });
+  
   window.dispatchEvent(new CustomEvent('auth-changed', { detail: null }));
 }
 

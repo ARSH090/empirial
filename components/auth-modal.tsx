@@ -14,8 +14,10 @@ export function AuthModal() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [customName, setCustomName] = useState('');
   const [customEmail, setCustomEmail] = useState('');
+  const [customPassword, setCustomPassword] = useState('');
   const [customPhone, setCustomPhone] = useState('');
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'discord' | 'email' | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     const handleOpen = () => setIsOpen(true);
@@ -30,77 +32,129 @@ export function AuthModal() {
     };
   }, []);
 
-  const handleGoogleConnect = () => {
+  const handleGoogleConnect = async () => {
     setLoadingProvider('google');
-    setTimeout(() => {
-      const user: UserProfile = {
-        uid: `trader-google-${Date.now()}`,
-        displayName: mode === 'signup' ? 'New Google Trader' : 'Google Trader',
-        email: 'trader@gmail.com',
-        phoneNumber: '+1 (555) 389-2049',
+    setErrorMsg('');
+    try {
+      const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+      const { auth } = await import('@/lib/firebase/config');
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      const userProfile: UserProfile = {
+        uid: user.uid,
+        displayName: user.displayName || 'Google Trader',
+        email: user.email || '',
+        phoneNumber: user.phoneNumber || '+1 (555) 389-2049',
         role: 'trader',
-        traderId: `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+        traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
+        avatarUrl: user.photoURL || undefined,
         points: mode === 'signup' ? 3000 : 2500,
         accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
         country: 'Global',
-        discordHandle: '@google_trader',
+        discordHandle: user.displayName ? `@${user.displayName.toLowerCase().replace(/\s+/g, '_')}` : undefined,
         bio: 'Connected via Google Account. Trader on EMPIRIAL 2.0.',
       };
-      saveUser(user);
-      setLoadingProvider(null);
+      saveUser(userProfile);
       setIsOpen(false);
-    }, 450);
+    } catch (err: any) {
+      console.error('Google connect error:', err);
+      setErrorMsg(err.message || 'Google sign in failed. Please try again.');
+    } finally {
+      setLoadingProvider(null);
+    }
   };
 
   const handleDiscordConnect = () => {
     setLoadingProvider('discord');
-    setTimeout(() => {
-      const user: UserProfile = {
-        uid: `trader-discord-${Date.now()}`,
-        displayName: mode === 'signup' ? 'New Discord Trader' : 'Discord Trader',
-        email: 'trader@discord.gg',
-        phoneNumber: '+1 (555) 812-9901',
-        role: 'trader',
-        traderId: `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
-        avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-        points: mode === 'signup' ? 3000 : 2500,
-        accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
-        country: 'Global',
-        discordHandle: '@discord_trader#1337',
-        bio: 'Connected via Discord. Community member and trader on EMPIRIAL 2.0.',
-      };
-      saveUser(user);
+    setErrorMsg('');
+    try {
+      const clientId = '1542933980955943013';
+      const redirectUri = typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.host}/api/auth/discord/callback`
+        : 'https://empirial-bo6vs466p-arsh090s-projects.vercel.app/api/auth/discord/callback';
+      
+      const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify+email`;
+      window.location.href = discordAuthUrl;
+    } catch (err: any) {
+      console.error('Discord redirect error:', err);
+      setErrorMsg('Failed to redirect to Discord. Please try again.');
       setLoadingProvider(null);
-      setIsOpen(false);
-    }, 450);
+    }
   };
 
-  const handleEmailConnect = (e: React.FormEvent) => {
+  const handleEmailConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customEmail.trim()) return;
+    if (!customEmail.trim() || !customPassword.trim()) return;
 
     setLoadingProvider('email');
-    setTimeout(() => {
-      const displayName = customName.trim() || customEmail.split('@')[0];
-      const user: UserProfile = {
-        uid: `trader-email-${Date.now()}`,
-        displayName: displayName,
-        email: customEmail.trim(),
-        phoneNumber: customPhone.trim() || '+1 (555) 019-2834',
-        role: 'trader',
-        traderId: `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
-        avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
-        points: mode === 'signup' ? 3000 : 2500,
-        accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
-        country: 'Global',
-        discordHandle: `@${displayName.toLowerCase().replace(/\s+/g, '_')}`,
-        bio: `${mode === 'signup' ? 'New registered' : 'Funded'} trader on EMPIRIAL 2.0.`,
-      };
-      saveUser(user);
-      setLoadingProvider(null);
+    setErrorMsg('');
+    try {
+      const { 
+        signInWithEmailAndPassword, 
+        createUserWithEmailAndPassword, 
+        updateProfile 
+      } = await import('firebase/auth');
+      const { auth } = await import('@/lib/firebase/config');
+      
+      if (mode === 'signup') {
+        const result = await createUserWithEmailAndPassword(auth, customEmail.trim(), customPassword.trim());
+        const user = result.user;
+        const displayName = customName.trim() || customEmail.split('@')[0];
+        
+        await updateProfile(user, { displayName });
+        
+        const userProfile: UserProfile = {
+          uid: user.uid,
+          displayName,
+          email: customEmail.trim(),
+          phoneNumber: customPhone.trim() || '+1 (555) 019-2834',
+          role: 'trader',
+          traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
+          avatarUrl: undefined,
+          points: 3000,
+          accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
+          country: 'Global',
+          discordHandle: `@${displayName.toLowerCase().replace(/\s+/g, '_')}`,
+          bio: 'New registered trader on EMPIRIAL 2.0.',
+        };
+        saveUser(userProfile);
+      } else {
+        const result = await signInWithEmailAndPassword(auth, customEmail.trim(), customPassword.trim());
+        const user = result.user;
+        
+        const userProfile: UserProfile = {
+          uid: user.uid,
+          displayName: user.displayName || customEmail.split('@')[0],
+          email: user.email || customEmail.trim(),
+          phoneNumber: '+1 (555) 019-2834',
+          role: 'trader',
+          traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
+          avatarUrl: user.photoURL || undefined,
+          points: 2500,
+          accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
+          country: 'Global',
+          discordHandle: user.displayName ? `@${user.displayName.toLowerCase().replace(/\s+/g, '_')}` : undefined,
+          bio: 'Trader on EMPIRIAL 2.0.',
+        };
+        saveUser(userProfile);
+      }
       setIsOpen(false);
-    }, 450);
+    } catch (err: any) {
+      console.error('Email auth error:', err);
+      if (err.code === 'auth/email-already-in-use') {
+        setErrorMsg('This email address is already in use.');
+      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        setErrorMsg('Invalid email or password.');
+      } else if (err.code === 'auth/weak-password') {
+        setErrorMsg('Password should be at least 6 characters.');
+      } else {
+        setErrorMsg(err.message || 'Authentication failed.');
+      }
+    } finally {
+      setLoadingProvider(null);
+    }
   };
 
   return (
@@ -238,6 +292,13 @@ export function AuthModal() {
               </span>
             </div>
 
+            {/* Error Message Display */}
+            {errorMsg && (
+              <div className="p-3 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 rounded-xl">
+                {errorMsg}
+              </div>
+            )}
+
             {/* Option 3: Custom Email Form */}
             <form onSubmit={handleEmailConnect} className="space-y-3">
               <div className="space-y-1">
@@ -264,6 +325,21 @@ export function AuthModal() {
                   value={customEmail}
                   onChange={(e) => setCustomEmail(e.target.value)}
                   placeholder="trader@empirial.com"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-foreground">
+                  Password <span className="text-zinc-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={customPassword}
+                  onChange={(e) => setCustomPassword(e.target.value)}
+                  placeholder="••••••••"
+                  minLength={6}
                   className="w-full bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                 />
               </div>
