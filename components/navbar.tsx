@@ -29,14 +29,12 @@ export default function NavBar() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    // Check initial user from localStorage or set default trader
+    // Check initial user from localStorage
     const user = getStoredUser();
     if (user) {
       setCurrentUser(user);
     } else {
-      // Default to DEMO_TRADER so user immediately experiences connected profile state
-      saveUser(DEMO_TRADER);
-      setCurrentUser(DEMO_TRADER);
+      setCurrentUser(null);
     }
 
     const handleAuthChange = (e: CustomEvent) => {
@@ -62,7 +60,7 @@ export default function NavBar() {
     { name: "Prop Firms", href: "/firms" },
     { name: "Offers", href: "/deals" },
     { name: "Challenges", href: "/challenges" },
-    { name: "Announcements", href: "/blog" },
+    { name: "State Hall", href: "/blog" },
     { name: "Compare", href: "/compare" },
   ];
 
@@ -240,22 +238,13 @@ export default function NavBar() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                /* Disconnected State: Connect Button with Google Logo */
+                /* Disconnected State: Connect Button */
                 <Button
                   onClick={openAuthModal}
-                  className="hidden sm:inline-flex items-center gap-2 rounded-xl font-semibold px-4 h-9 bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors shadow-xs cursor-pointer"
+                  className="hidden sm:inline-flex items-center gap-2 rounded-xl font-semibold px-4 h-9 bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors shadow-xs cursor-pointer text-xs"
                   size="sm"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    width="16"
-                    height="16"
-                    fill="currentColor"
-                    className="size-4 shrink-0"
-                  >
-                    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
-                  </svg>
+                  <User className="w-3.5 h-3.5" />
                   <span>Connect</span>
                 </Button>
               )}

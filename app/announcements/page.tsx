@@ -6,6 +6,6 @@ export const metadata = {
   description: 'State Hall: Live prop firm announcements, institutional trade ideas, challenge discounts, and psychological frameworks.',
 };
 
-export default function BlogPage() {
+export default function AnnouncementsPage() {
   return <SocialFeedClient />;
 }

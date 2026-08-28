@@ -38,6 +38,7 @@ import { MOCK_EVENTS } from '@/lib/data/events-data';
 import { Event, EventCategory, GiveawaySubCategory, EventSubCategory } from '@/lib/types';
 import { getEvents } from '@/lib/firebase/services';
 import { useEffect } from 'react';
+import { getStoredUser, openAuthModal } from '@/lib/utils/auth-store';
 import {
   Tooltip,
   TooltipContent,
@@ -103,9 +104,14 @@ export function EventsClient() {
     setSubCategory('all');
   };
 
-  // Toggle task completion
+  // Toggle task completion (Requires Account)
   const handleToggleTask = (eventId: string, taskId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const user = getStoredUser();
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     setCompletedTaskIds((prev) => {
       const current = prev[eventId] || [];
       if (current.includes(taskId)) {
@@ -116,18 +122,28 @@ export function EventsClient() {
     });
   };
 
-  // Submit proof handler (Point 2)
+  // Submit proof handler (Requires Account)
   const handleSubmitProof = (eventId: string, proofVal: string) => {
     if (!proofVal.trim()) return;
+    const user = getStoredUser();
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     setSubmittedProofs((prev) => ({
       ...prev,
       [eventId]: proofVal.trim(),
     }));
   };
 
-  // Register for event handler with Flying Trophy animation & Email notification
+  // Register for event handler (Requires Account)
   const handleRegisterEvent = (ev: Event, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const user = getStoredUser();
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     if (!registeredEventIds.includes(ev.id)) {
       setRegisteredEventIds((prev) => [...prev, ev.id]);
     }
@@ -141,7 +157,7 @@ export function EventsClient() {
     // Trigger Email Notification Toast
     setNotificationToast({
       title: ev.title,
-      email: 'trader@empirial.com',
+      email: user.email || 'trader@empirial.com',
     });
     setTimeout(() => {
       setNotificationToast(null);

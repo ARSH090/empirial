@@ -49,7 +49,7 @@ export default function Hero() {
           transition={{ duration: 0.6, type: "spring", bounce: 0 }}
           className="flex flex-col justify-center items-center space-y-5 max-w-4xl mx-auto text-center"
         >
-          <h1 className="text-4xl font-medium tracking-tighter mx-auto sm:text-5xl md:text-6xl text-balance bg-gradient-to-b from-sky-800 dark:from-sky-100 to-foreground dark:to-foreground bg-clip-text text-transparent leading-[1.12] whitespace-pre-line">
+          <h1 className="text-4xl font-medium tracking-tighter mx-auto sm:text-5xl md:text-6xl text-balance bg-gradient-to-b from-sky-800 dark:from-sky-100 to-foreground dark:to-foreground bg-clip-text text-transparent leading-[1.2] py-1 pb-2 sm:pb-3 whitespace-pre-line">
             {heroData.title}
           </h1>
           <p className="max-w-2xl text-base sm:text-lg mx-auto text-muted-foreground text-balance leading-relaxed">

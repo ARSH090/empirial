@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import NavBar from '@/components/navbar';
+import { OfferPosterModal } from '@/components/offer-poster-modal';
 
 export const metadata: Metadata = {
   title: 'EMPIRIAL | Prop Trading Intelligence & Evaluation Platform',
@@ -19,6 +20,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           {/* Global Navigation */}
           <NavBar />
+
+          {/* Session Welcome Offer Poster Modal */}
+          <OfferPosterModal />
 
           {/* Main Content Area */}
           <main className="flex-1 w-full bg-background">

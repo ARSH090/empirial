@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Metadata } from 'next';
 import { ChallengesClient } from './ChallengesClient';
 
@@ -8,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function ChallengesPage() {
-  return <ChallengesClient />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <ChallengesClient />
+    </Suspense>
+  );
 }

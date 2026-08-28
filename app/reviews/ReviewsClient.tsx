@@ -22,6 +22,7 @@ import {
 import { MOCK_REVIEWS } from '@/lib/data/reviews-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Review, Firm } from '@/lib/types';
+import { getStoredUser, openAuthModal } from '@/lib/utils/auth-store';
 import {
   Tooltip,
   TooltipContent,
@@ -61,10 +62,16 @@ export function ReviewsClient() {
     setSelectedFirmSlugs([]);
   };
 
-  // Open Review modal pre-selecting a specific firm
+  // Open Review modal pre-selecting a specific firm (Requires Account)
   const handleOpenReviewModal = (firmId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const user = getStoredUser();
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     setSelectedModalFirmId(firmId);
+    setFullName(user.displayName || '');
     setIsSubmitOpen(true);
     setIsSubmittedSuccess(false);
   };
