@@ -28,6 +28,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { openAuthModal, UserProfile } from "@/lib/utils/auth-store";
+import { LogoTridentE } from "@/components/ui/logo-trident-e";
 
 export function NavBar() {
   const pathname = usePathname();
@@ -70,18 +71,17 @@ export function NavBar() {
   return (
     <>
       <nav
-        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
-          isScrolled || isMobileMenuOpen
+        className={`sticky top-0 z-50 w-full transition-all duration-300 ${isScrolled || isMobileMenuOpen
             ? "bg-background/80 backdrop-blur-xl border-b border-border/80 shadow-sm"
             : "bg-background/40 backdrop-blur-md border-b border-border/40"
-        }`}
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-cyan-500/20 group-hover:scale-105 transition-transform">
-                <span className="text-white font-black text-base tracking-tighter">E</span>
+              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white text-white dark:text-black flex items-center justify-center p-1.5 shadow-sm group-hover:scale-105 transition-transform">
+                <LogoTridentE variant="v1" size={20} />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
@@ -102,11 +102,10 @@ export function NavBar() {
             <div className="hidden xl:flex items-center gap-1 text-sm">
               <Link
                 href="/challenges"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  pathname === "/challenges"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${pathname === "/challenges"
                     ? "text-primary bg-primary/10 font-semibold"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                }`}
+                  }`}
               >
                 <span>Challenges</span>
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
@@ -120,11 +119,10 @@ export function NavBar() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`gap-1 font-medium ${
-                      pathname.startsWith("/firms") || pathname.startsWith("/forex") || pathname.startsWith("/futures")
+                    className={`gap-1 font-medium ${pathname.startsWith("/firms") || pathname.startsWith("/forex") || pathname.startsWith("/futures")
                         ? "text-primary bg-primary/10"
                         : "text-muted-foreground hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     <span>Prop Firms</span>
                     <ChevronDown className="h-3.5 w-3.5 opacity-70" />
@@ -177,20 +175,18 @@ export function NavBar() {
                   <Link
                     key={link.name}
                     href={link.href}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors relative ${
-                      isActive
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors relative ${isActive
                         ? "text-primary bg-primary/10 font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                    }`}
+                      }`}
                   >
                     <span>{link.name}</span>
                     {link.badge && (
                       <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                          link.isHot
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${link.isHot
                             ? "bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse"
                             : "bg-muted text-muted-foreground"
-                        }`}
+                          }`}
                       >
                         {link.badge}
                       </span>

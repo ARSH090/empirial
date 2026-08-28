@@ -59,6 +59,29 @@ export interface UserProfileReview {
   created_at: string;
 }
 
+export interface UserReferralItem {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+  joined_at: string;
+  status: 'account_created' | 'challenge_purchased';
+  points_earned: number;
+  commission_earned: number;
+  purchased_account_title?: string;
+}
+
+export interface UserRedeemedReward {
+  id: string;
+  reward_title: string;
+  category: 'cash' | 'challenge' | 'commission';
+  points_spent: number;
+  value_display: string;
+  status: 'completed' | 'processing';
+  date: string;
+  delivery_info?: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -77,6 +100,12 @@ export interface UserProfile {
   following_ids?: string[];
   firm_badge?: string;
   firm_logo?: string;
+  referral_code?: string;
+  referrals_count?: number;
+  referral_points?: number;
+  referral_commission?: number;
+  referrals?: UserReferralItem[];
+  redeemed_referral_rewards?: UserRedeemedReward[];
 }
 
 export const DEFAULT_PURCHASED_ACCOUNTS: UserPurchasedAccount[] = [
@@ -186,6 +215,10 @@ export const DEMO_TRADER: UserProfile = {
   is_verified: true,
   verification_status: 'approved',
   following_ids: ['author-firm-1', 'author-trader-2'],
+  referral_code: 'EMP-90428',
+  referrals_count: 18,
+  referral_points: 1800,
+  referral_commission: 285.00,
 };
 
 
@@ -484,4 +517,258 @@ export function addUserReview(review: Omit<UserProfileReview, 'id' | 'created_at
   const updated = [newReview, ...reviews];
   saveUserReviews(updated);
   return newReview;
+}
+
+export const INITIAL_USER_REFERRALS: UserReferralItem[] = [
+  {
+    id: 'ref-1',
+    name: 'Marcus Chen',
+    email: 'marcus.fx@gmail.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-27',
+    status: 'challenge_purchased',
+    points_earned: 100,
+    commission_earned: 74.85,
+    purchased_account_title: 'NYS Capital $100K 1-Step Evaluation',
+  },
+  {
+    id: 'ref-2',
+    name: 'Sarah Jenkins',
+    email: 'sarah.trades@outlook.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-26',
+    status: 'challenge_purchased',
+    points_earned: 100,
+    commission_earned: 44.85,
+    purchased_account_title: 'FundedNext $50K Stellar 2-Phase',
+  },
+  {
+    id: 'ref-3',
+    name: 'Devon Vance',
+    email: 'devon.vance@gmail.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-25',
+    status: 'challenge_purchased',
+    points_earned: 100,
+    commission_earned: 99.80,
+    purchased_account_title: 'Topstep $50K CME Futures Combine',
+  },
+  {
+    id: 'ref-4',
+    name: 'Liam O\'Connor',
+    email: 'liam.trader@yahoo.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-24',
+    status: 'challenge_purchased',
+    points_earned: 100,
+    commission_earned: 65.50,
+    purchased_account_title: 'Alpha Capital Group $100K Challenge',
+  },
+  {
+    id: 'ref-5',
+    name: 'Elena Rostova',
+    email: 'elena.rostova@icloud.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-23',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-6',
+    name: 'Alexandre Dubois',
+    email: 'dubois.alex@gmail.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-22',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-7',
+    name: 'Priya Sharma',
+    email: 'priya.sharma99@gmail.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-21',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-8',
+    name: 'Carlos Mendez',
+    email: 'carlos.m@tradinghub.io',
+    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-20',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-9',
+    name: 'Kenji Takahashi',
+    email: 'kenji.takahashi@tokyo-fx.jp',
+    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-19',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-10',
+    name: 'Zack Miller',
+    email: 'zack.scalper@gmail.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-18',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-11',
+    name: 'Fatima Al-Mansoor',
+    email: 'fatima.dubai@fxmarket.ae',
+    avatarUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-17',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-12',
+    name: 'David Becker',
+    email: 'david.becker@berlin-capital.de',
+    avatarUrl: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-16',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-13',
+    name: 'Matteo Rossi',
+    email: 'matteo.rossi@milano.it',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-15',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-14',
+    name: 'Lucas Silva',
+    email: 'lucas.silva@sao-paulo.br',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-14',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-15',
+    name: 'Hannah Nguyen',
+    email: 'hannah.nguyen@sydney-trades.au',
+    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-13',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-16',
+    name: 'Nico Santos',
+    email: 'nico.santos@manila-fx.ph',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-12',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-17',
+    name: 'Tariq Hassan',
+    email: 'tariq.trader@cairo-capital.eg',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-11',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+  {
+    id: 'ref-18',
+    name: 'Oliver Wright',
+    email: 'oliver.wright@london-fx.uk',
+    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80',
+    joined_at: '2026-08-10',
+    status: 'account_created',
+    points_earned: 100,
+    commission_earned: 0,
+  },
+];
+
+export function getStoredReferrals(): UserReferralItem[] {
+  if (typeof window === 'undefined') return INITIAL_USER_REFERRALS;
+  const saved = localStorage.getItem('empirial_user_referrals');
+  if (!saved) {
+    localStorage.setItem('empirial_user_referrals', JSON.stringify(INITIAL_USER_REFERRALS));
+    return INITIAL_USER_REFERRALS;
+  }
+  try {
+    return JSON.parse(saved);
+  } catch (e) {
+    return INITIAL_USER_REFERRALS;
+  }
+}
+
+export function saveStoredReferrals(referrals: UserReferralItem[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('empirial_user_referrals', JSON.stringify(referrals));
+  window.dispatchEvent(new CustomEvent('user-referrals-changed', { detail: referrals }));
+}
+
+export function addReferralInvite(name: string, email: string, purchasedAccount?: string): UserReferralItem {
+  const current = getStoredReferrals();
+  const hasPurchased = !!purchasedAccount;
+  const commission = hasPurchased ? 45.00 : 0;
+  const newRef: UserReferralItem = {
+    id: `ref-${Date.now()}`,
+    name,
+    email,
+    avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+    joined_at: new Date().toISOString().split('T')[0],
+    status: hasPurchased ? 'challenge_purchased' : 'account_created',
+    points_earned: 100,
+    commission_earned: commission,
+    purchased_account_title: purchasedAccount,
+  };
+  const updated = [newRef, ...current];
+  saveStoredReferrals(updated);
+  return newRef;
+}
+
+export function getStoredRedeemedRewards(): UserRedeemedReward[] {
+  if (typeof window === 'undefined') return [];
+  const saved = localStorage.getItem('empirial_redeemed_rewards');
+  if (!saved) return [];
+  try {
+    return JSON.parse(saved);
+  } catch (e) {
+    return [];
+  }
+}
+
+export function addRedeemedReward(reward: Omit<UserRedeemedReward, 'id' | 'date' | 'status'>): UserRedeemedReward {
+  const current = getStoredRedeemedRewards();
+  const newReward: UserRedeemedReward = {
+    id: `red-${Date.now()}`,
+    ...reward,
+    status: 'completed',
+    date: new Date().toISOString().split('T')[0],
+  };
+  const updated = [newReward, ...current];
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('empirial_redeemed_rewards', JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('redeemed-rewards-changed', { detail: updated }));
+  }
+  return newReward;
 }

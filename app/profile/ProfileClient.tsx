@@ -20,6 +20,7 @@ import {
   ListTodo,
   Sparkles,
   Lock,
+  Unlock,
   Edit3,
   Save,
   Check,
@@ -39,6 +40,16 @@ import {
   Radio,
   Layers,
   ChevronDown,
+  Copy,
+  Share2,
+  DollarSign,
+  Users,
+  Percent,
+  RotateCcw,
+  Zap,
+  CheckCircle,
+  Wallet,
+  ArrowUpRight,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -53,13 +64,20 @@ import {
   addSupportTicket,
   replyToSupportTicket,
   DEFAULT_PURCHASED_ACCOUNTS,
+  UserReferralItem,
+  UserRedeemedReward,
+  getStoredReferrals,
+  saveStoredReferrals,
+  addReferralInvite,
+  getStoredRedeemedRewards,
+  addRedeemedReward,
 } from '@/lib/utils/auth-store';
 import { MOCK_EVENTS } from '@/lib/data/events-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 
 export function ProfileClient() {
   const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_TRADER);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'reviews' | 'events' | 'support'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'reviews' | 'events' | 'support' | 'referrals'>('dashboard');
 
   // Edit profile state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -99,6 +117,29 @@ export function ProfileClient() {
   // Accounts Purchased Filter
   const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'funded' | 'passed' | 'scaling' | 'active'>('all');
 
+  // Refer & Earn state
+  const [referralsList, setReferralsList] = useState<UserReferralItem[]>([]);
+  const [redeemedRewardsList, setRedeemedRewardsList] = useState<UserRedeemedReward[]>([]);
+  const [referralFilter, setReferralFilter] = useState<'all' | 'purchased' | 'signed_up'>('all');
+  const [copiedRefLink, setCopiedRefLink] = useState(false);
+  const [isSimulatingInvite, setIsSimulatingInvite] = useState(false);
+  const [demoSimulate100, setDemoSimulate100] = useState(false);
+  const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
+  const [selectedReward, setSelectedReward] = useState<{
+    id: string;
+    title: string;
+    category: 'cash' | 'challenge' | 'commission';
+    pointsCost: number;
+    valueDisplay: string;
+    description: string;
+    tag?: string;
+  } | null>(null);
+  const [isLockedMilestoneModalOpen, setIsLockedMilestoneModalOpen] = useState(false);
+  const [lockedModalReason, setLockedModalReason] = useState('');
+  const [redeemPayoutMethod, setRedeemPayoutMethod] = useState<'bank' | 'crypto_usdt' | 'email_key'>('bank');
+  const [redeemPayoutAddress, setRedeemPayoutAddress] = useState('');
+  const [referralToastMsg, setReferralToastMsg] = useState('');
+
   // Load initial data
   useEffect(() => {
     const user = getStoredUser() || DEMO_TRADER;
@@ -110,6 +151,8 @@ export function ProfileClient() {
 
     setReviewsList(getStoredUserReviews());
     setTicketsList(getStoredSupportTickets());
+    setReferralsList(getStoredReferrals());
+    setRedeemedRewardsList(getStoredRedeemedRewards());
 
     const handleAuthChange = (e: CustomEvent) => {
       if (e.detail) {
@@ -127,14 +170,26 @@ export function ProfileClient() {
       if (e.detail) setTicketsList(e.detail);
     };
 
+    const handleReferralsChange = (e: CustomEvent) => {
+      if (e.detail) setReferralsList(e.detail);
+    };
+
+    const handleRedeemedRewardsChange = (e: CustomEvent) => {
+      if (e.detail) setRedeemedRewardsList(e.detail);
+    };
+
     window.addEventListener('auth-changed' as any, handleAuthChange);
     window.addEventListener('user-reviews-changed' as any, handleReviewsChange);
     window.addEventListener('support-tickets-changed' as any, handleTicketsChange);
+    window.addEventListener('user-referrals-changed' as any, handleReferralsChange);
+    window.addEventListener('redeemed-rewards-changed' as any, handleRedeemedRewardsChange);
 
     return () => {
       window.removeEventListener('auth-changed' as any, handleAuthChange);
       window.removeEventListener('user-reviews-changed' as any, handleReviewsChange);
       window.removeEventListener('support-tickets-changed' as any, handleTicketsChange);
+      window.removeEventListener('user-referrals-changed' as any, handleReferralsChange);
+      window.removeEventListener('redeemed-rewards-changed' as any, handleRedeemedRewardsChange);
     };
   }, []);
 
@@ -237,6 +292,122 @@ export function ProfileClient() {
     return list.filter((a) => a.status === accountStatusFilter);
   }, [currentUser.accountsPurchased, accountStatusFilter]);
 
+  // Referral Calculations & Handlers
+  const effectiveReferralsCount = demoSimulate100
+    ? (referralsList.length < 100 ? referralsList.length + 100 : referralsList.length)
+    : referralsList.length;
+
+  const totalReferralPoints = effectiveReferralsCount * 100;
+  const baseCommission = referralsList.reduce((acc, r) => acc + (r.commission_earned || 0), 0);
+  const totalCommissionEarned = baseCommission + (demoSimulate100 ? 520.00 : 0);
+  const milestoneTarget = 100;
+  const isMilestoneUnlocked = effectiveReferralsCount >= milestoneTarget;
+  const milestoneProgressPct = Math.min(100, Math.round((effectiveReferralsCount / milestoneTarget) * 100));
+  const invitesRemaining = Math.max(0, milestoneTarget - effectiveReferralsCount);
+
+  // Filtered Referrals
+  const filteredReferrals = useMemo(() => {
+    if (referralFilter === 'all') return referralsList;
+    if (referralFilter === 'purchased') return referralsList.filter((r) => r.status === 'challenge_purchased');
+    return referralsList.filter((r) => r.status === 'account_created');
+  }, [referralsList, referralFilter]);
+
+  // Unique Referral Link Generator
+  const referralCode = currentUser.traderId || 'EMP-90428';
+  const referralUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/?ref=${referralCode}`
+    : `https://empirial.com/?ref=${referralCode}`;
+
+  const handleCopyReferralLink = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(referralUrl);
+      setCopiedRefLink(true);
+      setReferralToastMsg('Unique referral link copied to clipboard!');
+      setTimeout(() => {
+        setCopiedRefLink(false);
+        setReferralToastMsg('');
+      }, 3000);
+    }
+  };
+
+  const handleSimulateInvite = () => {
+    setIsSimulatingInvite(true);
+    setTimeout(() => {
+      const mockNames = ['Jordan Vance', 'Aria Montgomery', 'Dominic T.', 'Kavita Patel', 'Mateo Fernandez', 'Lucas Thorne', 'Sophia Chen'];
+      const randomName = mockNames[Math.floor(Math.random() * mockNames.length)] + ` (${Math.floor(Math.random() * 900 + 100)})`;
+      const randomEmail = `${randomName.toLowerCase().replace(/[^a-z0-9]/g, '')}@tradingdesk.io`;
+      
+      addReferralInvite(randomName, randomEmail);
+      setReferralsList(getStoredReferrals());
+      
+      const updatedUser = {
+        ...currentUser,
+        points: (currentUser.points || 0) + 100,
+        referrals_count: (currentUser.referrals_count || referralsList.length) + 1,
+        referral_points: ((currentUser.referrals_count || referralsList.length) + 1) * 100,
+      };
+      saveUser(updatedUser);
+      setCurrentUser(updatedUser);
+
+      setIsSimulatingInvite(false);
+      setReferralToastMsg(`🎉 Referral registered! +100 Points added to your balance for inviting ${randomName}!`);
+      setTimeout(() => setReferralToastMsg(''), 5000);
+    }, 500);
+  };
+
+  const handleOpenRewardRedeem = (reward: {
+    id: string;
+    title: string;
+    category: 'cash' | 'challenge' | 'commission';
+    pointsCost: number;
+    valueDisplay: string;
+    description: string;
+    tag?: string;
+  }) => {
+    if (!isMilestoneUnlocked) {
+      setLockedModalReason(`You currently have ${effectiveReferralsCount} verified referrals. 100 referrals are required to unlock Cash Payouts and Free Challenges. (${invitesRemaining} more invites to unlock!)`);
+      setIsLockedMilestoneModalOpen(true);
+      return;
+    }
+
+    if (reward.pointsCost > (currentUser.points || 0) && reward.category !== 'commission') {
+      alert(`Insufficient points: You need ${reward.pointsCost.toLocaleString()} Points for this reward. Current balance: ${(currentUser.points || 0).toLocaleString()} Points.`);
+      return;
+    }
+
+    setSelectedReward(reward);
+    setIsRedeemModalOpen(true);
+  };
+
+  const handleConfirmRedeem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReward) return;
+
+    if (selectedReward.pointsCost > 0) {
+      const updatedUser = {
+        ...currentUser,
+        points: Math.max(0, (currentUser.points || 0) - selectedReward.pointsCost),
+      };
+      saveUser(updatedUser);
+      setCurrentUser(updatedUser);
+    }
+
+    addRedeemedReward({
+      reward_title: selectedReward.title,
+      category: selectedReward.category,
+      points_spent: selectedReward.pointsCost,
+      value_display: selectedReward.valueDisplay,
+      delivery_info: redeemPayoutAddress.trim() || 'Direct settlement to registered trader account',
+    });
+
+    setRedeemedRewardsList(getStoredRedeemedRewards());
+    setIsRedeemModalOpen(false);
+    setSelectedReward(null);
+    setRedeemPayoutAddress('');
+    setReferralToastMsg(`✅ Redemption submitted! Your ${selectedReward.title} has been logged and is processing.`);
+    setTimeout(() => setReferralToastMsg(''), 5000);
+  };
+
   const selectedTicket = ticketsList.find((t) => t.id === selectedTicketId) || ticketsList[0];
 
   return (
@@ -286,6 +457,23 @@ export function ProfileClient() {
                 <span>{ticketToastMsg}</span>
               </div>
               <button onClick={() => setTicketToastMsg('')} className="p-1 hover:opacity-70 cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+
+          {referralToastMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="p-3 rounded-2xl bg-black text-white dark:bg-white dark:text-black border border-white/20 dark:border-black/20 text-xs font-semibold flex items-center justify-between shadow-xl"
+            >
+              <div className="flex items-center gap-2">
+                <Gift className="w-4 h-4 text-amber-400 dark:text-amber-500 shrink-0" />
+                <span>{referralToastMsg}</span>
+              </div>
+              <button onClick={() => setReferralToastMsg('')} className="p-1 hover:opacity-70 cursor-pointer">
                 <X className="w-3.5 h-3.5" />
               </button>
             </motion.div>
@@ -352,12 +540,12 @@ export function ProfileClient() {
           </div>
         </div>
 
-        {/* 2. Navigation Tabs (Dashboard, Reviews, Events & Giveaway, Contact Support) */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 max-w-2xl overflow-x-auto">
+        {/* 2. Navigation Tabs (Dashboard, Reviews, Events & Giveaway, Contact Support, Refer & Earn) */}
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 w-full max-w-4xl overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab('dashboard')}
-            className={`flex-1 min-w-[120px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[110px] py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'dashboard'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
@@ -370,7 +558,7 @@ export function ProfileClient() {
           <button
             type="button"
             onClick={() => setActiveTab('reviews')}
-            className={`flex-1 min-w-[120px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[110px] py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'reviews'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
@@ -383,7 +571,7 @@ export function ProfileClient() {
           <button
             type="button"
             onClick={() => setActiveTab('events')}
-            className={`flex-1 min-w-[140px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'events'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
@@ -396,7 +584,7 @@ export function ProfileClient() {
           <button
             type="button"
             onClick={() => setActiveTab('support')}
-            className={`flex-1 min-w-[130px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[125px] py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'support'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
@@ -404,6 +592,19 @@ export function ProfileClient() {
           >
             <Ticket className="w-3.5 h-3.5" />
             <span>4. Contact Support ({ticketsList.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('referrals')}
+            className={`flex-1 min-w-[135px] py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'referrals'
+                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Gift className="w-3.5 h-3.5" />
+            <span>5. Refer & Earn ({effectiveReferralsCount})</span>
           </button>
         </div>
 
@@ -1208,6 +1409,721 @@ export function ProfileClient() {
           </div>
         )}
 
+        {/* ======================= TAB 5: REFER & EARN ======================= */}
+        {activeTab === 'referrals' && (
+          <div className="space-y-8 animate-in fade-in duration-200">
+            
+            {/* 1. Header & Title Banner */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800 pb-5">
+              <div>
+                <h2 className="text-xl font-semibold sm:text-2xl bg-gradient-to-b from-foreground to-muted-foreground text-transparent bg-clip-text">
+                  Refer & Earn Program
+                </h2>
+                <p className="text-muted-foreground text-sm sm:text-base mt-1">
+                  Invite fellow traders with your unique link. Earn <span className="font-bold text-foreground">100 Points</span> for every signup & unlock Cash Payouts, Free Prop Challenges, and Lifetime Commission when your invites purchase accounts.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSimulateInvite}
+                  disabled={isSimulatingInvite}
+                  className="px-3.5 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                >
+                  <Users className={`w-3.5 h-3.5 ${isSimulatingInvite ? 'animate-spin' : ''}`} />
+                  <span>{isSimulatingInvite ? 'Simulating Invite...' : '+ Simulate Test Invite (+100 Pts)'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Quick Metrics Bar (Strictly RULE:BW Numbers & Typography) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">Total Referrals Invited</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  {effectiveReferralsCount} <span className="text-sm font-medium text-muted-foreground">Traders</span>
+                </div>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>1 Invite = 100 Points</span>
+                </span>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">Points Earned via Referrals</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  {totalReferralPoints.toLocaleString()} <span className="text-sm font-medium text-muted-foreground">Pts</span>
+                </div>
+                <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <span>Total Balance: {(currentUser.points || 0).toLocaleString()} Pts</span>
+                </span>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">Referral Commission Earned</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  ${totalCommissionEarned.toFixed(2)}
+                </div>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>Lifetime 20% Commission</span>
+                </span>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold">100 Referrals Milestone</span>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  {effectiveReferralsCount} <span className="text-sm font-medium text-muted-foreground">/ 100</span>
+                </div>
+                <span className={`text-[11px] font-bold flex items-center gap-1 ${isMilestoneUnlocked ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {isMilestoneUnlocked ? (
+                    <>
+                      <Unlock className="w-3 h-3" />
+                      <span>Unlocked & Active!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3 h-3" />
+                      <span>{invitesRemaining} more to unlock rewards</span>
+                    </>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* 3. 100-Referrals Milestone Policy Banner & Progress Bar */}
+            <div className="p-6 rounded-3xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 ${
+                      isMilestoneUnlocked
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                        : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700'
+                    }`}>
+                      {isMilestoneUnlocked ? <Unlock className="w-3 h-3 text-emerald-500" /> : <Lock className="w-3 h-3 text-muted-foreground" />}
+                      <span>{isMilestoneUnlocked ? 'Elite Partner Tier (Unlocked)' : 'Locked: Active After 100 Referrals'}</span>
+                    </span>
+                    <span className="text-xs font-bold text-muted-foreground">
+                      {milestoneProgressPct}% Completed
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-foreground">
+                    100 Referrals Elite Unlock Milestone
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-3xl">
+                    <strong className="text-foreground">Important Program Policy:</strong> Reward redemptions (Direct Cash Payouts, Free Prop Firm Evaluation Accounts, and Instant Commission Withdrawals) become fully active once your account reaches <strong className="text-foreground">100 verified referrals</strong>. You earn <strong className="text-foreground">100 Points</strong> immediately for every invited user who creates an account.
+                  </p>
+                </div>
+
+                {/* Interactive Demo Test Toggle */}
+                <div className="shrink-0 flex items-center gap-2 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setDemoSimulate100(!demoSimulate100)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                      demoSimulate100
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground'
+                    }`}
+                  >
+                    {demoSimulate100 ? <Check className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                    <span>{demoSimulate100 ? 'Demo Mode: 100+ Referrals (Active)' : 'Test Toggle: Simulate 100+ Referrals'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-1.5 pt-1">
+                <div className="w-full h-3 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden p-0.5 border border-zinc-200 dark:border-zinc-700">
+                  <div
+                    className="h-full rounded-full bg-black dark:bg-white transition-all duration-500"
+                    style={{ width: `${milestoneProgressPct}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>0 Referrals</span>
+                  <span className="font-semibold text-foreground">
+                    {effectiveReferralsCount} / 100 Referrals ({milestoneProgressPct}%)
+                  </span>
+                  <span>100 Referrals (Reward Unlock)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Unique Referral Link & Social Sharing Center */}
+            <div className="bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-xs">
+              <div className="space-y-1 border-b border-zinc-100 dark:border-zinc-800 pb-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Share2 className="w-4 h-4 text-foreground" />
+                    <span>Your Unique Referral Link</span>
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Referral Code:</span>
+                    <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 font-mono text-xs font-bold text-foreground">
+                      {referralCode}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Share this link anywhere. When someone clicks and registers, they get linked to your account and you receive 100 Points immediately.
+                </p>
+              </div>
+
+              {/* Link Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
+                <div className="flex-1 flex items-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 font-mono text-xs text-foreground overflow-x-auto select-all">
+                  <span>{referralUrl}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyReferralLink}
+                  className="px-6 py-3 rounded-2xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                >
+                  {copiedRefLink ? <Check className="w-4 h-4 text-emerald-400 dark:text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedRefLink ? 'Link Copied!' : 'Copy Unique Link'}</span>
+                </button>
+              </div>
+
+              {/* Quick Share Buttons */}
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <span>Quick Share:</span>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Join EMPIRIAL 2.0 with my referral link to compare top prop firms and get exclusive discounts: ${referralUrl}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-foreground text-xs font-medium transition-colors"
+                  >
+                    WhatsApp
+                  </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Compare top prop firms and claim verified discounts on EMPIRIAL 2.0:`)}&url=${encodeURIComponent(referralUrl)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-foreground text-xs font-medium transition-colors"
+                  >
+                    Twitter / X
+                  </a>
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(`Compare prop firms and grab discounts on EMPIRIAL 2.0:`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-foreground text-xs font-medium transition-colors"
+                  >
+                    Telegram
+                  </a>
+                  <a
+                    href={`mailto:?subject=Join%20EMPIRIAL%202.0%20Prop%20Firm%20Platform&body=${encodeURIComponent(`Hey, check out EMPIRIAL 2.0 to compare prop firms, claim promo discounts, and enter giveaways: ${referralUrl}`)}`}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-foreground text-xs font-medium transition-colors"
+                  >
+                    Email
+                  </a>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Instant webhook attribution on user registration</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. Rewards Redemption Catalog (Cash, Challenges, Commission) */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200/80 dark:border-zinc-800 pb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Gift className="w-5 h-5 text-foreground" />
+                    <span>Redeem Referral Rewards Catalog</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Convert your earned points and commission balances into direct payouts or evaluation accounts. (Requires 100 Referrals to redeem).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                    isMilestoneUnlocked
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-muted-foreground border border-zinc-200 dark:border-zinc-700'
+                  }`}>
+                    {isMilestoneUnlocked ? '● Redemptions Unlocked' : '● Redemptions Locked (100 Ref. Req.)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Reward Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                
+                {/* Reward 1: $100 Cash */}
+                <div className="p-6 rounded-3xl bg-white dark:bg-card border border-zinc-200 dark:border-border shadow-xs flex flex-col justify-between space-y-4 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-wider">
+                        Direct Cash Payout
+                      </span>
+                      <div className="text-right">
+                        <span className="text-lg font-extrabold text-foreground">$100.00</span>
+                        <p className="text-[10px] text-muted-foreground">USD Transfer</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-foreground">$100 Direct Cash Transfer</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Direct wire transfer to your Bank Account or USDT (TRC20/ERC20) Crypto wallet.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="text-muted-foreground">Cost:</span>
+                      <span className="text-foreground font-mono font-bold">10,000 Points</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRewardRedeem({
+                      id: 'rew-cash-100',
+                      title: '$100 Direct Cash Transfer',
+                      category: 'cash',
+                      pointsCost: 10000,
+                      valueDisplay: '$100.00 USD',
+                      description: 'Bank Wire Transfer or USDT Crypto Payout',
+                      tag: 'Direct Cash',
+                    })}
+                    className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isMilestoneUnlocked
+                        ? 'bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                        : 'border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  >
+                    {isMilestoneUnlocked ? <Wallet className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{isMilestoneUnlocked ? 'Redeem $100 Cash' : 'Redeem (100 Invites Req.)'}</span>
+                  </button>
+                </div>
+
+                {/* Reward 2: $250 Cash */}
+                <div className="p-6 rounded-3xl bg-white dark:bg-card border border-zinc-200 dark:border-border shadow-xs flex flex-col justify-between space-y-4 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-wider">
+                        Direct Cash Payout
+                      </span>
+                      <div className="text-right">
+                        <span className="text-lg font-extrabold text-foreground">$250.00</span>
+                        <p className="text-[10px] text-muted-foreground">USD Transfer</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-foreground">$250 Direct Cash Transfer</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Fast direct settlement to your verified bank account or crypto wallet.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="text-muted-foreground">Cost:</span>
+                      <span className="text-foreground font-mono font-bold">25,000 Points</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRewardRedeem({
+                      id: 'rew-cash-250',
+                      title: '$250 Direct Cash Transfer',
+                      category: 'cash',
+                      pointsCost: 25000,
+                      valueDisplay: '$250.00 USD',
+                      description: 'Bank Wire Transfer or USDT Crypto Payout',
+                      tag: 'Direct Cash',
+                    })}
+                    className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isMilestoneUnlocked
+                        ? 'bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                        : 'border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  >
+                    {isMilestoneUnlocked ? <Wallet className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{isMilestoneUnlocked ? 'Redeem $250 Cash' : 'Redeem (100 Invites Req.)'}</span>
+                  </button>
+                </div>
+
+                {/* Reward 3: NYS Capital $100K Challenge */}
+                <div className="p-6 rounded-3xl bg-white dark:bg-card border-2 border-black dark:border-white shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black text-[10px] font-extrabold uppercase tracking-wider">
+                        ★ Most Popular Challenge
+                      </span>
+                      <div className="text-right">
+                        <span className="text-lg font-extrabold text-foreground">$100,000</span>
+                        <p className="text-[10px] text-muted-foreground">Account Size</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-foreground">NYS Capital $100K 1-Step</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        100% Free Account Voucher code delivered instantly for NYS Capital cTrader Evaluation.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="text-muted-foreground">Cost:</span>
+                      <span className="text-foreground font-mono font-bold">15,000 Points</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRewardRedeem({
+                      id: 'rew-chall-nys-100k',
+                      title: 'NYS Capital $100,000 1-Step Evaluation Account',
+                      category: 'challenge',
+                      pointsCost: 15000,
+                      valueDisplay: '$100,000 1-Step Key ($499 Value)',
+                      description: 'Instant Voucher Key for NYS Capital Evaluation',
+                      tag: 'Free Challenge',
+                    })}
+                    className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isMilestoneUnlocked
+                        ? 'bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                        : 'border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  >
+                    {isMilestoneUnlocked ? <Trophy className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{isMilestoneUnlocked ? 'Redeem Free $100K Challenge' : 'Redeem (100 Invites Req.)'}</span>
+                  </button>
+                </div>
+
+                {/* Reward 4: Topstep $50K Futures Combine */}
+                <div className="p-6 rounded-3xl bg-white dark:bg-card border border-zinc-200 dark:border-border shadow-xs flex flex-col justify-between space-y-4 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-foreground border border-zinc-200 dark:border-zinc-700 text-[10px] font-extrabold uppercase tracking-wider">
+                        CME Futures Challenge
+                      </span>
+                      <div className="text-right">
+                        <span className="text-lg font-extrabold text-foreground">$50,000</span>
+                        <p className="text-[10px] text-muted-foreground">Futures Account</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-foreground">Topstep $50K Futures Combine</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Free evaluation key for Topstep Tradovate / NinjaTrader futures trading combine.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="text-muted-foreground">Cost:</span>
+                      <span className="text-foreground font-mono font-bold">12,500 Points</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRewardRedeem({
+                      id: 'rew-chall-topstep-50k',
+                      title: 'Topstep $50,000 CME Futures Combine Account',
+                      category: 'challenge',
+                      pointsCost: 12500,
+                      valueDisplay: '$50,000 Futures Key ($165 Value)',
+                      description: 'Instant Topstep Trading Combine Activation Code',
+                      tag: 'Free Challenge',
+                    })}
+                    className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isMilestoneUnlocked
+                        ? 'bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                        : 'border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  >
+                    {isMilestoneUnlocked ? <Trophy className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{isMilestoneUnlocked ? 'Redeem Topstep $50K' : 'Redeem (100 Invites Req.)'}</span>
+                  </button>
+                </div>
+
+                {/* Reward 5: FundedNext $50K Stellar */}
+                <div className="p-6 rounded-3xl bg-white dark:bg-card border border-zinc-200 dark:border-border shadow-xs flex flex-col justify-between space-y-4 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-foreground border border-zinc-200 dark:border-zinc-700 text-[10px] font-extrabold uppercase tracking-wider">
+                        2-Phase Challenge
+                      </span>
+                      <div className="text-right">
+                        <span className="text-lg font-extrabold text-foreground">$50,000</span>
+                        <p className="text-[10px] text-muted-foreground">Account Size</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-foreground">FundedNext $50K Stellar Challenge</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        100% Free coupon code for FundedNext Stellar 2-Phase Challenge on Match-Trader.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="text-muted-foreground">Cost:</span>
+                      <span className="text-foreground font-mono font-bold">10,000 Points</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRewardRedeem({
+                      id: 'rew-chall-fn-50k',
+                      title: 'FundedNext $50,000 Stellar 2-Phase Challenge Account',
+                      category: 'challenge',
+                      pointsCost: 10000,
+                      valueDisplay: '$50,000 Stellar Key ($299 Value)',
+                      description: 'Instant Coupon Key for FundedNext Challenge',
+                      tag: 'Free Challenge',
+                    })}
+                    className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isMilestoneUnlocked
+                        ? 'bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                        : 'border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  >
+                    {isMilestoneUnlocked ? <Trophy className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{isMilestoneUnlocked ? 'Redeem FundedNext $50K' : 'Redeem (100 Invites Req.)'}</span>
+                  </button>
+                </div>
+
+                {/* Reward 6: Direct Affiliate Commission Payout */}
+                <div className="p-6 rounded-3xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between space-y-4 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 text-[10px] font-extrabold uppercase tracking-wider">
+                        Commission Payout
+                      </span>
+                      <div className="text-right">
+                        <span className="text-lg font-extrabold text-foreground">${totalCommissionEarned.toFixed(2)}</span>
+                        <p className="text-[10px] text-muted-foreground">Available Balance</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-foreground">Withdraw Account Commission</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Earn 20% on every challenge bought by your referrals. Withdraw your accrued earnings anytime.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-zinc-100 dark:border-zinc-800">
+                      <span className="text-muted-foreground">Commission Rate:</span>
+                      <span className="text-foreground font-mono font-bold">20% Lifetime</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRewardRedeem({
+                      id: 'rew-comm-payout',
+                      title: `Referral Commission Payout ($${totalCommissionEarned.toFixed(2)})`,
+                      category: 'commission',
+                      pointsCost: 0,
+                      valueDisplay: `$${totalCommissionEarned.toFixed(2)} USD`,
+                      description: 'Direct withdrawal of referral purchase commissions',
+                      tag: 'Commission',
+                    })}
+                    className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isMilestoneUnlocked
+                        ? 'bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200'
+                        : 'border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  >
+                    {isMilestoneUnlocked ? <DollarSign className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{isMilestoneUnlocked ? `Withdraw $${totalCommissionEarned.toFixed(2)}` : 'Withdraw (100 Invites Req.)'}</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            {/* 6. Referred Traders Activity Table */}
+            <div className="bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4 text-foreground" />
+                    <span>Your Referred Traders ({filteredReferrals.length})</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Live list of traders registered via your unique link with points and commissions awarded.
+                  </p>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setReferralFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      referralFilter === 'all'
+                        ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    All ({referralsList.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReferralFilter('purchased')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      referralFilter === 'purchased'
+                        ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Purchased Challenge ({referralsList.filter((r) => r.status === 'challenge_purchased').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReferralFilter('signed_up')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      referralFilter === 'signed_up'
+                        ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Signed Up Only ({referralsList.filter((r) => r.status === 'account_created').length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Referrals List Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-200/80 dark:border-zinc-800 text-muted-foreground font-semibold">
+                      <th className="pb-3 pr-4">Trader</th>
+                      <th className="pb-3 pr-4">Joined Date</th>
+                      <th className="pb-3 pr-4">Status</th>
+                      <th className="pb-3 pr-4">Challenge Purchased</th>
+                      <th className="pb-3 pr-4 text-right">Points Earned</th>
+                      <th className="pb-3 text-right">Commission</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-medium">
+                    {filteredReferrals.length > 0 ? (
+                      filteredReferrals.map((ref) => {
+                        const isPurchased = ref.status === 'challenge_purchased';
+                        return (
+                          <tr key={ref.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition-colors">
+                            <td className="py-3.5 pr-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center font-bold text-[11px] text-foreground shrink-0 overflow-hidden">
+                                  {ref.avatarUrl ? (
+                                    <img src={ref.avatarUrl} alt={ref.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span>{ref.name.slice(0, 2).toUpperCase()}</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-foreground">{ref.name}</p>
+                                  <p className="text-[10px] text-muted-foreground">{ref.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3.5 pr-4 text-muted-foreground font-mono text-[11px]">
+                              {ref.joined_at}
+                            </td>
+                            <td className="py-3.5 pr-4">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isPurchased
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-zinc-100 dark:bg-zinc-800 text-muted-foreground border border-zinc-200 dark:border-zinc-700'
+                              }`}>
+                                {isPurchased ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                <span>{isPurchased ? 'Challenge Purchased' : 'Account Created'}</span>
+                              </span>
+                            </td>
+                            <td className="py-3.5 pr-4">
+                              {ref.purchased_account_title ? (
+                                <span className="font-semibold text-foreground">{ref.purchased_account_title}</span>
+                              ) : (
+                                <span className="text-muted-foreground italic">Browsing prop firms</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 pr-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              +{ref.points_earned} Pts
+                            </td>
+                            <td className="py-3.5 text-right font-mono font-bold text-foreground">
+                              {ref.commission_earned > 0 ? (
+                                <span className="text-emerald-600 dark:text-emerald-400">+${ref.commission_earned.toFixed(2)}</span>
+                              ) : (
+                                <span className="text-muted-foreground">$0.00</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                          No referrals matching this filter.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 7. Redeemed Rewards History */}
+            {redeemedRewardsList.length > 0 && (
+              <div className="bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border rounded-3xl p-6 sm:p-8 space-y-4 shadow-xs">
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  <span>Your Redeemed Rewards History ({redeemedRewardsList.length})</span>
+                </h3>
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
+                  {redeemedRewardsList.map((red) => (
+                    <div key={red.id} className="py-3 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-bold text-foreground">{red.reward_title}</p>
+                        <p className="text-[11px] text-muted-foreground">{red.delivery_info} • {red.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase">
+                          {red.status}
+                        </span>
+                        <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                          {red.points_spent > 0 ? `-${red.points_spent.toLocaleString()} Pts` : 'Commission Payout'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 8. How Refer & Earn Works (3 Simple Steps) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-6 rounded-3xl bg-white dark:bg-card border border-zinc-200 dark:border-border shadow-xs space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs">
+                  1
+                </div>
+                <h4 className="text-sm font-bold text-foreground">Share Your Unique Link</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Send your personalized link or referral code to fellow traders on Discord, Telegram, or Twitter.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white dark:bg-card border border-zinc-200 dark:border-border shadow-xs space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs">
+                  2
+                </div>
+                <h4 className="text-sm font-bold text-foreground">Earn 100 Points per Invite</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Every user who creates an account with your link instantly awards you 100 Points in real-time telemetry.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white dark:bg-card border border-zinc-200 dark:border-border shadow-xs space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs">
+                  3
+                </div>
+                <h4 className="text-sm font-bold text-foreground">Reach 100 Referrals & Redeem</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Unlock Cash Payouts, Free Prop Firm Challenges, and 20% Lifetime Account Commission once you hit 100 referrals!
+                </p>
+              </div>
+            </div>
+
+          </div>
+        )}
+
       </div>
 
       {/* MODAL 1: Write New Review Modal */}
@@ -1402,6 +2318,201 @@ export function ProfileClient() {
                     className="px-5 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold cursor-pointer shadow-xs"
                   >
                     Open Ticket Now
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: Milestone Locked Explainer Modal */}
+      <AnimatePresence>
+        {isLockedMilestoneModalOpen && (
+          <div
+            onClick={() => setIsLockedMilestoneModalOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 cursor-pointer"
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl cursor-default text-center"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center mx-auto text-foreground">
+                <Lock className="w-6 h-6" />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-foreground">100 Referrals Milestone Required</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {lockedModalReason || 'Direct Cash Transfers, Free Prop Firm Challenges, and Direct Commissions unlock automatically once you reach 100 verified referrals.'}
+                </p>
+              </div>
+
+              {/* Progress Summary */}
+              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-2 text-left">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">Current Progress:</span>
+                  <span className="font-bold text-foreground">{effectiveReferralsCount} / 100 Referrals ({milestoneProgressPct}%)</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-black dark:bg-white transition-all duration-300"
+                    style={{ width: `${milestoneProgressPct}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center pt-1">
+                  You earn <strong className="text-foreground">100 Points</strong> immediately per signup. Keep sharing to unlock!
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCopyReferralLink}
+                  className="flex-1 py-2.5 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Invite Link</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLockedMilestoneModalOpen(false)}
+                  className="py-2.5 px-4 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 4: Confirm Reward Redemption Modal */}
+      <AnimatePresence>
+        {isRedeemModalOpen && selectedReward && (
+          <div
+            onClick={() => setIsRedeemModalOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 cursor-pointer"
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl cursor-default"
+            >
+              <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+                <div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-wider">
+                    {selectedReward.tag || 'Reward Redemption'}
+                  </span>
+                  <h3 className="text-lg font-bold text-foreground mt-1">{selectedReward.title}</h3>
+                  <p className="text-xs text-muted-foreground">{selectedReward.description}</p>
+                </div>
+                <button onClick={() => setIsRedeemModalOpen(false)} className="p-1 text-muted-foreground hover:text-foreground cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Reward Cost & Balance Review */}
+              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Reward Value:</span>
+                  <span className="font-bold text-foreground">{selectedReward.valueDisplay}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Points Cost:</span>
+                  <span className="font-bold text-foreground font-mono">
+                    {selectedReward.pointsCost > 0 ? `${selectedReward.pointsCost.toLocaleString()} Points` : 'Free ($0 Pts)'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-zinc-200 dark:border-zinc-800">
+                  <span className="text-muted-foreground">Available Points:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                    {(currentUser.points || 0).toLocaleString()} Points
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmRedeem} className="space-y-4 text-xs">
+                {selectedReward.category === 'cash' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="font-bold text-foreground">Select Payout Method</label>
+                      <select
+                        value={redeemPayoutMethod}
+                        onChange={(e) => setRedeemPayoutMethod(e.target.value as any)}
+                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 font-semibold text-foreground"
+                      >
+                        <option value="bank">Direct Bank Wire Transfer (Global IBAN / SWIFT / ACH)</option>
+                        <option value="crypto_usdt">USDT Crypto Wallet (TRC-20 / ERC-20)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-foreground">
+                        {redeemPayoutMethod === 'bank' ? 'Bank Account / IBAN / SWIFT Details' : 'USDT TRC20 Wallet Address'}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder={redeemPayoutMethod === 'bank' ? 'Account Number, Bank Name, SWIFT/Routing...' : 'e.g. TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'}
+                        value={redeemPayoutAddress}
+                        onChange={(e) => setRedeemPayoutAddress(e.target.value)}
+                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedReward.category === 'challenge' && (
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground">Account Delivery Email</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="trader@email.com"
+                      value={redeemPayoutAddress || currentUser.email}
+                      onChange={(e) => setRedeemPayoutAddress(e.target.value)}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      The official voucher coupon code will be sent to this email immediately upon verification.
+                    </p>
+                  </div>
+                )}
+
+                {selectedReward.category === 'commission' && (
+                  <div className="space-y-1">
+                    <label className="font-bold text-foreground">Withdrawal Destination (Bank / USDT Address)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Bank wire details or USDT TRC20 address..."
+                      value={redeemPayoutAddress}
+                      onChange={(e) => setRedeemPayoutAddress(e.target.value)}
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground font-semibold"
+                    />
+                  </div>
+                )}
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsRedeemModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold cursor-pointer shadow-xs flex items-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Confirm Redemption</span>
                   </button>
                 </div>
               </form>
