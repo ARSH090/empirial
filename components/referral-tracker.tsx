@@ -181,6 +181,17 @@ export function ReferralTracker() {
           return;
         }
         
+        // If a Discord Sandbox user session is active, do not wipe it
+        const savedUserStr = localStorage.getItem('empirial_user');
+        if (savedUserStr) {
+          try {
+            const savedUser = JSON.parse(savedUserStr);
+            if (savedUser && savedUser.uid && savedUser.uid.startsWith('discord:')) {
+              return;
+            }
+          } catch (e) {}
+        }
+        
         // Sync null to state
         localStorage.removeItem('empirial_user');
         window.dispatchEvent(new CustomEvent('auth-changed', { detail: null }));

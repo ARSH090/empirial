@@ -250,7 +250,9 @@ export default function NavBar() {
                           <span>{currentUser.displayName.slice(0, 2).toUpperCase()}</span>
                         )}
                       </div>
-                      <span className="text-xs font-bold tracking-tight">PROFILE</span>
+                      <span className="text-xs font-bold tracking-tight truncate max-w-[100px]">
+                        {currentUser.displayName.toUpperCase()}
+                      </span>
                       <ChevronDownIcon className="w-3.5 h-3.5 opacity-70" />
                     </button>
                   </DropdownMenuTrigger>
