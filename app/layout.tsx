@@ -3,6 +3,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import NavBar from '@/components/navbar';
 import { OfferPosterModal } from '@/components/offer-poster-modal';
+import { ReferralTracker } from '@/components/referral-tracker';
 
 export const metadata: Metadata = {
   title: 'EMPIRIAL | Prop Trading Intelligence & Evaluation Platform',
@@ -18,6 +19,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground antialiased min-h-screen flex flex-col transition-colors duration-200">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          {/* Referral & Session Synchronizer */}
+          <ReferralTracker />
+
           {/* Global Navigation */}
           <NavBar />
 

@@ -106,6 +106,8 @@ export interface UserProfile {
   referral_commission?: number;
   referrals?: UserReferralItem[];
   redeemed_referral_rewards?: UserRedeemedReward[];
+  referredBy?: string;
+  referralCodeUsed?: string;
 }
 
 export const DEFAULT_PURCHASED_ACCOUNTS: UserPurchasedAccount[] = [];
@@ -172,6 +174,20 @@ export function saveUser(user: UserProfile) {
   localStorage.setItem('empirial_user', JSON.stringify(user));
   localStorage.removeItem('empirial_logged_out');
   window.dispatchEvent(new CustomEvent('auth-changed', { detail: user }));
+
+  // Asynchronously sync the user profile with Firestore in the background
+  import('@/lib/firebase/config').then(({ db }) => {
+    if (db) {
+      import('firebase/firestore').then(({ doc, setDoc }) => {
+        const docRef = doc(db, 'users', user.uid);
+        setDoc(docRef, user, { merge: true }).catch((err) => {
+          console.warn('Silent Firestore sync failed:', err);
+        });
+      });
+    }
+  }).catch((err) => {
+    console.warn('Firebase config import failed during silent sync:', err);
+  });
 }
 
 export function loginAsDemoTrader(): UserProfile {

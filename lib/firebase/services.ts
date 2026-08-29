@@ -1,4 +1,5 @@
 import { db, storage } from './config';
+import type { UserProfile } from '../utils/auth-store';
 import { 
   collection, 
   doc, 
@@ -636,4 +637,296 @@ export async function getFaqs(): Promise<any[]> {
   const colRef = collection(db, 'faqs');
   const snap = await getDocs(colRef);
   return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+}
+
+// ==========================================
+// REFERRAL & USER TRACKING SERVICES
+// ==========================================
+
+export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  if (!db) return null;
+  const docRef = doc(db, 'users', uid);
+  const snap = await getDoc(docRef);
+  return snap.exists() ? (snap.data() as UserProfile) : null;
+}
+
+export async function syncUserProfile(profile: UserProfile): Promise<void> {
+  if (!db) return;
+  const docRef = doc(db, 'users', profile.uid);
+  await setDoc(docRef, {
+    ...profile,
+    updated_at: new Date().toISOString()
+  }, { merge: true });
+}
+
+export async function validateReferralCode(code: string): Promise<string | null> {
+  if (!db || !code) return null;
+  const normalized = code.trim().toUpperCase();
+  const q = query(collection(db, 'users'), where('referral_code', '==', normalized));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    return snap.docs[0].id;
+  }
+  // Also check traderId for fallback compatibility
+  const q2 = query(collection(db, 'users'), where('traderId', '==', code.trim()));
+  const snap2 = await getDocs(q2);
+  if (!snap2.empty) {
+    return snap2.docs[0].id;
+  }
+  return null;
+}
+
+export async function trackReferralVisit(code: string, referrerUid: string): Promise<void> {
+  if (!db) return;
+  
+  // Client check: Check if they already have an attribution locally to avoid duplicating
+  if (typeof window !== 'undefined') {
+    const existing = localStorage.getItem('empirial_attribution');
+    if (existing) {
+      try {
+        const parsed = JSON.parse(existing);
+        if (parsed.referralCode === code) {
+          // Already tracked this visitor for this referral code, skip
+          return;
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    
+    // Generate a unique anonymous visitor ID
+    const visitorId = `VIS_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const landingPage = window.location.pathname || '/';
+    const visitedAt = new Date().toISOString();
+    
+    // Save to localStorage
+    const attribution = {
+      visitorId,
+      referralCode: code,
+      referrerUserId: referrerUid,
+      visitedAt
+    };
+    localStorage.setItem('empirial_attribution', JSON.stringify(attribution));
+    
+    // Write anonymous tracking document to Firestore
+    const docRef = doc(db, 'referralVisitors', visitorId);
+    await setDoc(docRef, {
+      visitorId,
+      referralCode: code,
+      referrerUserId: referrerUid,
+      registeredUserId: null,
+      landingPage,
+      visitedAt,
+      registeredAt: null,
+      status: 'anonymous'
+    });
+  }
+}
+
+export async function convertReferralAttribution(userId: string, displayName: string, email: string): Promise<void> {
+  if (!db) return;
+  if (typeof window === 'undefined') return;
+  
+  const attributionStr = localStorage.getItem('empirial_attribution');
+  if (!attributionStr) return;
+  
+  try {
+    const attribution = JSON.parse(attributionStr);
+    const { visitorId, referralCode, referrerUserId } = attribution;
+    
+    if (!visitorId || !referralCode || !referrerUserId) return;
+    
+    // Self-referral protection: user cannot refer themselves
+    if (referrerUserId === userId) {
+      console.warn('Self-referral detected and blocked.');
+      localStorage.removeItem('empirial_attribution');
+      return;
+    }
+    
+    // Check if user is already referred (Existing-user protection)
+    const userDocRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userDocRef);
+    if (userSnap.exists() && userSnap.data().referredBy) {
+      // Already has a referrer, do not overwrite
+      localStorage.removeItem('empirial_attribution');
+      return;
+    }
+    
+    // 1. Update the anonymous referral visitor record in Firestore
+    const visitorDocRef = doc(db, 'referralVisitors', visitorId);
+    await setDoc(visitorDocRef, {
+      status: 'registered',
+      registeredUserId: userId,
+      registeredAt: new Date().toISOString()
+    }, { merge: true });
+    
+    // 2. Set the referrer fields on the new user's document
+    await setDoc(userDocRef, {
+      referredBy: referrerUserId,
+      referralCodeUsed: referralCode
+    }, { merge: true });
+    
+    // 3. Create a referral item under the referrer's referrals subcollection
+    const referralItemRef = doc(db, 'users', referrerUserId, 'referrals', userId);
+    await setDoc(referralItemRef, {
+      id: userId,
+      name: displayName || 'Referred Trader',
+      email: email || 'N/A',
+      joined_at: new Date().toISOString(),
+      status: 'account_created',
+      points_earned: 100,
+      commission_earned: 0
+    });
+    
+    // 4. Reward the referrer: Increment their points and counts
+    const referrerDocRef = doc(db, 'users', referrerUserId);
+    await setDoc(referrerDocRef, {
+      points: increment(100),
+      referral_points: increment(100),
+      referrals_count: increment(1)
+    }, { merge: true });
+    
+    // Clear attribution once successfully converted
+    localStorage.removeItem('empirial_attribution');
+  } catch (err) {
+    console.error('Error converting referral attribution:', err);
+  }
+}
+
+export async function getReferralStats(uid: string) {
+  if (!db) return { visitorsCount: 0, registrationsCount: 0, conversionRate: 0, referralsList: [] };
+  
+  try {
+    // Count visitors
+    const visitorsQuery = query(collection(db, 'referralVisitors'), where('referrerUserId', '==', uid));
+    const visitorsSnap = await getDocs(visitorsQuery);
+    const visitorsCount = visitorsSnap.size;
+    
+    // Query referrals subcollection
+    const refsSubColRef = collection(db, 'users', uid, 'referrals');
+    const refsSnap = await getDocs(refsSubColRef);
+    const referralsList = refsSnap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || 'Referred Trader',
+        email: data.email || 'N/A',
+        joined_at: data.joined_at || new Date().toISOString(),
+        status: data.status || 'account_created',
+        points_earned: data.points_earned || 0,
+        commission_earned: data.commission_earned || 0,
+        purchased_account_title: data.purchased_account_title
+      };
+    });
+    
+    const registrationsCount = referralsList.length;
+    const conversionRate = visitorsCount > 0 ? (registrationsCount / visitorsCount) * 100 : 0;
+    
+    return {
+      visitorsCount,
+      registrationsCount,
+      conversionRate,
+      referralsList
+    };
+  } catch (err) {
+    console.error('Error fetching user referral stats:', err);
+    return { visitorsCount: 0, registrationsCount: 0, conversionRate: 0, referralsList: [] };
+  }
+}
+
+export async function getAdminReferralStats() {
+  if (!db) return { totalVisitors: 0, totalRegistrations: 0, activeReferrers: 0, conversionRate: 0, referrers: [], leads: [] };
+  
+  try {
+    // 1. Fetch all referral visitors
+    const visitorsSnap = await getDocs(collection(db, 'referralVisitors'));
+    const visitors = visitorsSnap.docs.map(doc => doc.data());
+    const totalVisitors = visitors.length;
+    
+    // 2. Fetch all users
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const users = usersSnap.docs.map(doc => doc.data());
+    
+    // 3. Filter referred users
+    const referredUsers = users.filter(u => u.referredBy);
+    const totalRegistrations = referredUsers.length;
+    
+    // 4. Calculate active referrers
+    const referrerIds = new Set(visitors.map(v => v.referrerUserId).filter(Boolean));
+    const activeReferrers = referrerIds.size;
+    
+    // 5. Conversion rate
+    const conversionRate = totalVisitors > 0 ? (totalRegistrations / totalVisitors) * 100 : 0;
+    
+    // 6. Stats per referrer
+    const referrersMap: { [uid: string]: { name: string, code: string, visitors: number, registrations: number } } = {};
+    
+    users.forEach(u => {
+      referrersMap[u.uid] = {
+        name: u.displayName || u.email || 'Anonymous Trader',
+        code: u.referral_code || u.traderId || 'N/A',
+        visitors: 0,
+        registrations: 0
+      };
+    });
+    
+    visitors.forEach(v => {
+      if (v.referrerUserId) {
+        if (!referrersMap[v.referrerUserId]) {
+          referrersMap[v.referrerUserId] = { name: 'Unknown User', code: v.referralCode || 'N/A', visitors: 0, registrations: 0 };
+        }
+        referrersMap[v.referrerUserId].visitors++;
+      }
+    });
+    
+    referredUsers.forEach(u => {
+      if (u.referredBy && referrersMap[u.referredBy]) {
+        referrersMap[u.referredBy].registrations++;
+      }
+    });
+    
+    const referrersList = Object.keys(referrersMap).map(uid => {
+      const item = referrersMap[uid];
+      const rate = item.visitors > 0 ? (item.registrations / item.visitors) * 100 : 0;
+      return {
+        uid,
+        name: item.name,
+        code: item.code,
+        visitors: item.visitors,
+        registrations: item.registrations,
+        conversionRate: rate
+      };
+    }).filter(r => r.visitors > 0 || r.registrations > 0);
+    
+    referrersList.sort((a, b) => b.registrations - a.registrations);
+    
+    // 7. Mapped leads
+    const leadsList = visitors.map(v => {
+      const referrerUser = users.find(u => u.uid === v.referrerUserId);
+      const registeredUser = users.find(u => u.uid === v.registeredUserId);
+      return {
+        visitorId: v.visitorId,
+        status: v.status === 'registered' ? 'REGISTERED' : 'NOT REGISTERED',
+        name: v.status === 'registered' ? (registeredUser?.displayName || registeredUser?.email || 'Registered User') : 'Anonymous Visitor',
+        referredByCode: v.referralCode || 'N/A',
+        referredByUid: v.referrerUserId,
+        referredByName: referrerUser?.displayName || 'Unknown Referrer',
+        visitedAt: v.visitedAt || new Date().toISOString()
+      };
+    });
+    
+    leadsList.sort((a, b) => new Date(b.visitedAt).getTime() - new Date(a.visitedAt).getTime());
+    
+    return {
+      totalVisitors,
+      totalRegistrations,
+      activeReferrers,
+      conversionRate,
+      referrers: referrersList,
+      leads: leadsList
+    };
+  } catch (err) {
+    console.error('Error fetching admin referral stats:', err);
+    return { totalVisitors: 0, totalRegistrations: 0, activeReferrers: 0, conversionRate: 0, referrers: [], leads: [] };
+  }
 }

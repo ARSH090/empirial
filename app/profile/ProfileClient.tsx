@@ -74,6 +74,9 @@ import {
 } from '@/lib/utils/auth-store';
 import { MOCK_EVENTS } from '@/lib/data/events-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
+import { db } from '@/lib/firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
+import { getReferralStats } from '@/lib/firebase/services';
 
 export function ProfileClient() {
   const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_TRADER);
@@ -139,6 +142,23 @@ export function ProfileClient() {
   const [redeemPayoutMethod, setRedeemPayoutMethod] = useState<'bank' | 'crypto_usdt' | 'email_key'>('bank');
   const [redeemPayoutAddress, setRedeemPayoutAddress] = useState('');
   const [referralToastMsg, setReferralToastMsg] = useState('');
+
+  // Live Firestore referral counters
+  const [liveVisitors, setLiveVisitors] = useState(0);
+  const [liveRegistrations, setLiveRegistrations] = useState(0);
+  const [liveConversionRate, setLiveConversionRate] = useState(0);
+
+  // Fetch live referral stats
+  useEffect(() => {
+    if (currentUser && currentUser.uid) {
+      getReferralStats(currentUser.uid).then((stats) => {
+        setLiveVisitors(stats.visitorsCount);
+        setLiveRegistrations(stats.registrationsCount);
+        setLiveConversionRate(stats.conversionRate);
+        setReferralsList(stats.referralsList);
+      }).catch(err => console.error("Failed to fetch live referrals stats:", err));
+    }
+  }, [activeTab, currentUser.uid]);
 
   // Load initial data
   useEffect(() => {
@@ -293,15 +313,12 @@ export function ProfileClient() {
   }, [currentUser.accountsPurchased, accountStatusFilter]);
 
   // Referral Calculations & Handlers
-  const effectiveReferralsCount = demoSimulate100
-    ? (referralsList.length < 100 ? referralsList.length + 100 : referralsList.length)
-    : referralsList.length;
-
+  const effectiveReferralsCount = liveRegistrations;
   const totalReferralPoints = effectiveReferralsCount * 100;
   const baseCommission = referralsList.reduce((acc, r) => acc + (r.commission_earned || 0), 0);
   const totalCommissionEarned = baseCommission + (demoSimulate100 ? 520.00 : 0);
   const milestoneTarget = 100;
-  const isMilestoneUnlocked = effectiveReferralsCount >= milestoneTarget;
+  const isMilestoneUnlocked = effectiveReferralsCount >= milestoneTarget || demoSimulate100;
   const milestoneProgressPct = Math.min(100, Math.round((effectiveReferralsCount / milestoneTarget) * 100));
   const invitesRemaining = Math.max(0, milestoneTarget - effectiveReferralsCount);
 
@@ -313,7 +330,7 @@ export function ProfileClient() {
   }, [referralsList, referralFilter]);
 
   // Unique Referral Link Generator
-  const referralCode = currentUser.traderId || 'EMP-90428';
+  const referralCode = currentUser.traderId || `EMP-${currentUser.uid?.substring(0, 5).toUpperCase() || 'TRADER'}`;
   const referralUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/?ref=${referralCode}`
     : `https://empirial.com/?ref=${referralCode}`;
@@ -330,29 +347,66 @@ export function ProfileClient() {
     }
   };
 
-  const handleSimulateInvite = () => {
+  const handleSimulateInvite = async () => {
     setIsSimulatingInvite(true);
-    setTimeout(() => {
+    try {
       const mockNames = ['Jordan Vance', 'Aria Montgomery', 'Dominic T.', 'Kavita Patel', 'Mateo Fernandez', 'Lucas Thorne', 'Sophia Chen'];
       const randomName = mockNames[Math.floor(Math.random() * mockNames.length)] + ` (${Math.floor(Math.random() * 900 + 100)})`;
       const randomEmail = `${randomName.toLowerCase().replace(/[^a-z0-9]/g, '')}@tradingdesk.io`;
-      
-      addReferralInvite(randomName, randomEmail);
-      setReferralsList(getStoredReferrals());
-      
+
+      const mockVisitorId = `VIS_TEST_${Date.now()}`;
+      const mockUserId = `user_test_${Date.now()}`;
+
+      // Write mock visitor to Firestore
+      if (db) {
+        await setDoc(doc(db, 'referralVisitors', mockVisitorId), {
+          visitorId: mockVisitorId,
+          referralCode: referralCode,
+          referrerUserId: currentUser.uid,
+          registeredUserId: mockUserId,
+          landingPage: '/',
+          visitedAt: new Date().toISOString(),
+          registeredAt: new Date().toISOString(),
+          status: 'registered'
+        });
+
+        // Write mock referred item to subcollection
+        await setDoc(doc(db, 'users', currentUser.uid, 'referrals', mockUserId), {
+          id: mockUserId,
+          name: randomName,
+          email: randomEmail,
+          joined_at: new Date().toISOString(),
+          status: 'account_created',
+          points_earned: 100,
+          commission_earned: 0
+        });
+      }
+
+      // Update current user points and referrals_count in localStorage and Firestore
       const updatedUser = {
         ...currentUser,
         points: (currentUser.points || 0) + 100,
-        referrals_count: (currentUser.referrals_count || referralsList.length) + 1,
-        referral_points: ((currentUser.referrals_count || referralsList.length) + 1) * 100,
+        referrals_count: (currentUser.referrals_count || 0) + 1,
+        referral_points: ((currentUser.referrals_count || 0) + 1) * 100,
       };
+
       saveUser(updatedUser);
       setCurrentUser(updatedUser);
 
-      setIsSimulatingInvite(false);
-      setReferralToastMsg(`🎉 Referral registered! +100 Points added to your balance for inviting ${randomName}!`);
+      // Trigger reload of stats
+      const stats = await getReferralStats(currentUser.uid);
+      setLiveVisitors(stats.visitorsCount);
+      setLiveRegistrations(stats.registrationsCount);
+      setLiveConversionRate(stats.conversionRate);
+      setReferralsList(stats.referralsList);
+
+      setReferralToastMsg(`🎉 Real Referral simulated! +100 Points added in Firestore for inviting ${randomName}!`);
       setTimeout(() => setReferralToastMsg(''), 5000);
-    }, 500);
+    } catch (err) {
+      console.error('Error simulating invite:', err);
+    } finally {
+      setIsSimulatingInvite(false);
+    }
   };
 
   const handleOpenRewardRedeem = (reward: {

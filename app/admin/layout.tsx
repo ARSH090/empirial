@@ -26,6 +26,7 @@ import {
   Settings,
   ArrowLeft,
   Lock,
+  Users,
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -129,6 +130,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Discount Promo Deals', href: '/admin/deals', icon: Tag },
     { name: 'Payout Proofs Queue', href: '/admin/payouts', icon: DollarSign, badge: 'Queue' },
     { name: 'Reviews Moderation', href: '/admin/reviews', icon: Star },
+    { name: 'Referral Tracking', href: '/admin/referrals', icon: Users, badge: 'Leads' },
     { name: 'Broker Spreads Matrix', href: '/admin/spreads', icon: Activity },
     { name: 'Tournaments & Events', href: '/admin/events', icon: Calendar },
     { name: 'Industry Awards 2026', href: '/admin/awards', icon: Award },

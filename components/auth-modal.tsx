@@ -42,19 +42,39 @@ export function AuthModal() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      const userProfile: UserProfile = {
+      // Read pending referral attribution from local storage
+      let referredBy: string | undefined = undefined;
+      let referralCodeUsed: string | undefined = undefined;
+      if (typeof window !== 'undefined' && mode === 'signup') {
+        const attributionStr = localStorage.getItem('empirial_attribution');
+        if (attributionStr) {
+          try {
+            const attr = JSON.parse(attributionStr);
+            if (attr.referrerUserId && attr.referrerUserId !== user.uid) {
+              referredBy = attr.referrerUserId;
+              referralCodeUsed = attr.referralCode;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      const userProfile: UserProfile & { referredBy?: string; referralCodeUsed?: string; referral_code?: string } = {
         uid: user.uid,
         displayName: user.displayName || 'Google Trader',
         email: user.email || '',
         phoneNumber: user.phoneNumber || '+1 (555) 389-2049',
         role: 'trader',
         traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
+        referral_code: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
         avatarUrl: user.photoURL || undefined,
         points: mode === 'signup' ? 3000 : 2500,
         accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
         country: 'Global',
         discordHandle: user.displayName ? `@${user.displayName.toLowerCase().replace(/\s+/g, '_')}` : undefined,
         bio: 'Connected via Google Account. Trader on EMPIRIAL 2.0.',
+        ...(referredBy ? { referredBy, referralCodeUsed } : {})
       };
       saveUser(userProfile);
       setIsOpen(false);
@@ -105,19 +125,39 @@ export function AuthModal() {
         
         await updateProfile(user, { displayName });
         
-        const userProfile: UserProfile = {
+        // Read pending referral attribution from local storage
+        let referredBy: string | undefined = undefined;
+        let referralCodeUsed: string | undefined = undefined;
+        if (typeof window !== 'undefined') {
+          const attributionStr = localStorage.getItem('empirial_attribution');
+          if (attributionStr) {
+            try {
+              const attr = JSON.parse(attributionStr);
+              if (attr.referrerUserId && attr.referrerUserId !== user.uid) {
+                referredBy = attr.referrerUserId;
+                referralCodeUsed = attr.referralCode;
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+
+        const userProfile: UserProfile & { referredBy?: string; referralCodeUsed?: string; referral_code?: string } = {
           uid: user.uid,
           displayName,
           email: customEmail.trim(),
           phoneNumber: customPhone.trim() || '+1 (555) 019-2834',
           role: 'trader',
           traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
+          referral_code: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
           avatarUrl: undefined,
           points: 3000,
           accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
           country: 'Global',
           discordHandle: `@${displayName.toLowerCase().replace(/\s+/g, '_')}`,
           bio: 'New registered trader on EMPIRIAL 2.0.',
+          ...(referredBy ? { referredBy, referralCodeUsed } : {})
         };
         saveUser(userProfile);
       } else {
