@@ -29,7 +29,7 @@ export const LogoTridentE: React.FC<LogoTridentEProps> = ({
 
   return (
     <div
-      className={`inline-flex items-center justify-center shrink-0 rounded-xl transition-all duration-300 shadow-sm ${containerStyle} ${className}`}
+      className={`inline-flex items-center justify-center shrink-0 rounded-full transition-all duration-300 shadow-sm ${containerStyle} ${className}`}
       style={{ width: dim, height: dim }}
       title="EMPIRIAL Trident Logo"
     >
