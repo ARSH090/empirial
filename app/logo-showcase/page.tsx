@@ -147,14 +147,14 @@ export default function LogoShowcasePage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-3 bg-black text-white px-4 py-3 rounded-xl text-xs font-medium shadow-md">
-              <LogoTridentE variant="v1" size={24} themeMode="dark" />
-              <span>Dark Theme</span>
+              <img src="/logos/empirial-dark-logo.png" alt="Black Theme Logo" className="w-8 h-8 rounded-lg object-cover" />
+              <span>1st Image Logo (Black Theme)</span>
             </div>
             <div className="flex items-center gap-3 bg-white text-black border border-zinc-200 px-4 py-3 rounded-xl text-xs font-medium shadow-md">
-              <LogoTridentE variant="v1" size={24} themeMode="light" />
-              <span>Light Theme</span>
+              <img src="/logos/empirial-light-logo.png" alt="White Theme Logo" className="w-8 h-8 rounded-lg object-cover" />
+              <span>2nd Image Logo (White Theme)</span>
             </div>
           </div>
         </div>

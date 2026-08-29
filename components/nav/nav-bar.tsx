@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { openAuthModal, UserProfile } from "@/lib/utils/auth-store";
-import { LogoTridentE } from "@/components/ui/logo-trident-e";
+import { EmpirialLogo } from "@/components/ui/empirial-logo";
 
 export function NavBar() {
   const pathname = usePathname();
@@ -79,24 +79,7 @@ export function NavBar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="group-hover:scale-105 transition-transform">
-                <LogoTridentE size={32} />
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-lg text-foreground tracking-tight group-hover:text-primary transition-colors">
-                    EMPIRIAL
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
-                    2.0
-                  </span>
-                </div>
-                <span className="text-[9px] font-semibold text-muted-foreground tracking-widest uppercase">
-                  ANURAJ FX INTELLIGENCE
-                </span>
-              </div>
-            </Link>
+            <EmpirialLogo height={36} />
 
             {/* Desktop Navigation */}
             <div className="hidden xl:flex items-center gap-1 text-sm">

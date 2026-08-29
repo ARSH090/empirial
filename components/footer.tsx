@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { GitHubLogoIcon, TwitterLogoIcon } from "@radix-ui/react-icons";
 import { useState, useEffect } from "react";
 import { getSiteSettings } from "@/lib/firebase/services";
+import { EmpirialLogo } from "@/components/ui/empirial-logo";
 
 const Footer = () => {
   const year = new Date().getFullYear();
@@ -61,12 +62,7 @@ const Footer = () => {
         >
           <div className="grid gap-8 sm:grid-cols-2 sm:gap-10 lg:grid-cols-3">
             <div className="space-y-3">
-              <Link
-                href="/"
-                className="inline-block text-xl font-medium tracking-tight transition-opacity hover:opacity-80"
-              >
-                {brandName}
-              </Link>
+              <EmpirialLogo height={32} />
               <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
                 {tagline}
               </p>

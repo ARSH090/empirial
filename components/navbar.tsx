@@ -24,6 +24,8 @@ import { openAuthModal, getStoredUser, logoutUser, UserProfile, DEMO_TRADER, sav
 import { AuthModal } from "@/components/auth-modal";
 import { LogoTridentE } from "@/components/ui/logo-trident-e";
 
+import { EmpirialLogo } from "@/components/ui/empirial-logo";
+
 export default function NavBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -182,22 +184,12 @@ export default function NavBar() {
 
             {/* Brand Name (Mobile) */}
             <div className="flex sm:hidden">
-              <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-lg text-foreground">
-                <LogoTridentE size={28} />
-                <span>EMPIRIAL</span>
-              </Link>
+              <EmpirialLogo height={32} textSize="text-lg font-bold" />
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden sm:flex items-center space-x-6 md:space-x-8">
-              <Link href="/" className="flex items-center gap-2 group">
-                <div className="group-hover:scale-105 transition-transform">
-                  <LogoTridentE size={38} />
-                </div>
-                <span className="font-bold tracking-tight text-xl md:text-2xl text-foreground">
-                  EMPIRIAL
-                </span>
-              </Link>
+              <EmpirialLogo height={36} />
 
               {navItems.map((item) => (
                 <Button asChild key={item.name} variant="ghost" size="sm" className="font-medium text-muted-foreground hover:text-foreground">
