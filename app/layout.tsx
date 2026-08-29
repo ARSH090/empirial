@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
-import NavBar from '@/components/nav/nav-bar';
+import NavBar from '@/components/navbar';
 import { OfferPosterModal } from '@/components/offer-poster-modal';
 import { ReferralTracker } from '@/components/referral-tracker';
 

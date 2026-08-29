@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { openAuthModal, getStoredUser, logoutUser, UserProfile, DEMO_TRADER, saveUser } from "@/lib/utils/auth-store";
 import { AuthModal } from "@/components/auth-modal";
+import { LogoTridentE } from "@/components/ui/logo-trident-e";
 
 export default function NavBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -154,15 +155,21 @@ export default function NavBar() {
 
             {/* Brand Name (Mobile) */}
             <div className="flex sm:hidden">
-              <Link href="/" className="font-bold tracking-tight text-lg text-foreground">
-                EMPIRIAL
+              <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-lg text-foreground">
+                <LogoTridentE size={24} />
+                <span>EMPIRIAL</span>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden sm:flex items-center space-x-6 md:space-x-8">
-              <Link href="/" className="font-bold tracking-tight text-xl md:text-2xl text-foreground">
-                EMPIRIAL
+              <Link href="/" className="flex items-center gap-2 group">
+                <div className="group-hover:scale-105 transition-transform">
+                  <LogoTridentE size={32} />
+                </div>
+                <span className="font-bold tracking-tight text-xl md:text-2xl text-foreground">
+                  EMPIRIAL
+                </span>
               </Link>
 
               {navItems.map((item) => (
