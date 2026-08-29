@@ -29,13 +29,19 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Allow updates to own profile, admin updates, or specific referrer point increments from signups
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'referral_points', 'referrals_count', 'updated_at'])
+      );
       allow delete: if isAdmin();
 
       // Referrals subcollection
+      // Allows the referrer (userId) OR the referred user (refId) to record the referral link conversion
       match /referrals/{refId} {
-        allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-        allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+        allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == refId || isAdmin());
+        allow write: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == refId || isAdmin());
       }
       
       // Purchased accounts subcollection
