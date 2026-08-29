@@ -80,8 +80,8 @@ export function NavBar() {
           {/* Brand Logo */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white text-white dark:text-black flex items-center justify-center p-1.5 shadow-sm group-hover:scale-105 transition-transform">
-                <LogoTridentE variant="v1" size={20} />
+              <div className="group-hover:scale-105 transition-transform">
+                <LogoTridentE size={32} />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">

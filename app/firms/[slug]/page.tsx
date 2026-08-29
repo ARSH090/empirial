@@ -7,6 +7,7 @@ import { MOCK_REVIEWS } from '@/lib/data/reviews-data';
 import { MOCK_PAYOUTS } from '@/lib/data/payouts-data';
 import { FirmProfileClient } from './FirmProfileClient';
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -67,7 +68,7 @@ export default async function FirmProfilePage({ params }: PageProps) {
 
   // Fallback to static mock datasets
   if (!firm) {
-    firm = MOCK_FIRMS[0];
+    notFound();
   }
   if (firmChallenges.length === 0) {
     firmChallenges = MOCK_CHALLENGES.filter((c) => c.firm_slug === firm!.slug || c.firm_id === firm!.id);

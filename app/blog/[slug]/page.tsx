@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Clock, Calendar, User, Share2, Sparkles, ShieldCheck } from 'lucide-react';
 import { MOCK_BLOG_POSTS } from '@/lib/data/blog-data';
 import { adminDb } from '@/lib/firebase/admin';
+import { notFound } from 'next/navigation';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -24,7 +25,7 @@ export default async function BlogPostPage({ params }: PageProps) {
   }
 
   if (!post) {
-    post = MOCK_BLOG_POSTS[0];
+    notFound();
   }
 
   return (
