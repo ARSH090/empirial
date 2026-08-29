@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase/admin';
+import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -93,52 +92,72 @@ export async function GET(request: NextRequest) {
 
     const uid = `discord:${discordUserId}`;
 
-    // 4. Check if Firebase Admin SDK is initialized, fallback to sandbox if unconfigured
-    if (!adminAuth) {
-      console.warn('Firebase Admin not initialized. Falling back to Sandbox mode for Discord Login.');
-      const redirectUrl = new URL('/', request.url);
+    // 4. Check if Firebase credentials are configured in the environment
+    const hasServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY && 
+      (() => {
+        try {
+          const parsed = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+          return !!(parsed && parsed.private_key && parsed.client_email);
+        } catch (e) {
+          return false;
+        }
+      })();
+      
+    const hasPrivateKeys = process.env.FIREBASE_CLIENT_EMAIL && 
+      process.env.FIREBASE_PRIVATE_KEY && 
+      process.env.FIREBASE_PRIVATE_KEY.trim() !== '';
+
+    let firebaseToken = null;
+    
+    if (hasServiceAccount || hasPrivateKeys) {
+      try {
+        // Dynamically import the Admin SDK config to avoid loading crashes on Vercel when keys are absent
+        const { adminAuth } = await import('@/lib/firebase/admin');
+        
+        if (adminAuth) {
+          // 5. Create or retrieve the Firebase User account
+          let userRecord;
+          try {
+            userRecord = await adminAuth.getUser(uid);
+            await adminAuth.updateUser(uid, {
+              displayName,
+              photoURL: avatarUrl,
+              ...(email ? { email } : {}),
+            });
+          } catch (err: any) {
+            if (err.code === 'auth/user-not-found') {
+              userRecord = await adminAuth.createUser({
+                uid,
+                email: email || undefined,
+                displayName,
+                photoURL: avatarUrl,
+              });
+            } else {
+              throw err;
+            }
+          }
+
+          // 6. Generate a custom Firebase Auth Token
+          firebaseToken = await adminAuth.createCustomToken(uid);
+        }
+      } catch (adminErr) {
+        console.error('Firebase Admin dynamic import or token exchange failed:', adminErr);
+      }
+    }
+
+    // 7. Redirect back to the home page with the appropriate token or sandbox mockup params
+    const redirectUrl = new URL('/', request.url);
+
+    if (!firebaseToken) {
+      console.warn('Firebase Admin not initialized. Falling back to Sandbox mode.');
       redirectUrl.searchParams.set('discord_mock', 'true');
       redirectUrl.searchParams.set('discord_uid', uid);
       redirectUrl.searchParams.set('discord_username', displayName);
       redirectUrl.searchParams.set('discord_email', email || 'trader@discord.gg');
       redirectUrl.searchParams.set('discord_avatar', avatarUrl);
-      
-      return new Response(null, {
-        status: 307,
-        headers: { Location: redirectUrl.toString() },
-      });
+    } else {
+      redirectUrl.searchParams.set('discord_token', firebaseToken);
     }
-
-    // 5. Create or retrieve the Firebase User account
-    let userRecord;
-    try {
-      userRecord = await adminAuth.getUser(uid);
-      // Update display name or avatar if it has changed on Discord
-      await adminAuth.updateUser(uid, {
-        displayName,
-        photoURL: avatarUrl,
-        ...(email ? { email } : {}),
-      });
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        userRecord = await adminAuth.createUser({
-          uid,
-          email: email || undefined,
-          displayName,
-          photoURL: avatarUrl,
-        });
-      } else {
-        console.error('Firebase Admin getUser error:', err);
-        throw err;
-      }
-    }
-
-    // 6. Generate a custom Firebase Auth Token
-    const customToken = await adminAuth.createCustomToken(uid);
-
-    // 6. Redirect back to the home page with the token
-    const redirectUrl = new URL('/', request.url);
-    redirectUrl.searchParams.set('discord_token', customToken);
     
     return new Response(null, {
       status: 307,
