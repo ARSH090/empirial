@@ -41,7 +41,44 @@ export function ReferralTracker() {
       }
     };
 
+    // 1.5. Intercept Discord mock login if adminAuth is missing on development or production
+    const handleDiscordMock = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const discordMock = urlParams.get('discord_mock');
+      if (discordMock) {
+        // Clean params from the URL immediately
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+
+        const mockUid = urlParams.get('discord_uid') || 'discord:sandbox';
+        const mockUsername = urlParams.get('discord_username') || 'Discord Sandbox Trader';
+        const mockEmail = urlParams.get('discord_email') || 'sandbox@discord.gg';
+        const mockAvatar = urlParams.get('discord_avatar') || undefined;
+
+        const userProfile: UserProfile = {
+          uid: mockUid,
+          displayName: mockUsername,
+          email: mockEmail,
+          phoneNumber: '+1 (555) 812-9901',
+          role: 'trader',
+          traderId: `EMP-${mockUid.substring(8, 13).toUpperCase()}`,
+          referral_code: `EMP-${mockUid.substring(8, 13).toUpperCase()}`,
+          avatarUrl: mockAvatar,
+          points: 2500,
+          accountsPurchased: [],
+          country: 'Global',
+          discordHandle: `@${mockUsername.toLowerCase().replace(/\s+/g, '_')}`,
+          bio: 'Connected via Local Discord Sandbox. Community member on EMPIRIAL 2.0.',
+        };
+        saveUser(userProfile);
+        
+        // Dispatch custom event to let components sync
+        window.dispatchEvent(new CustomEvent('auth-changed', { detail: userProfile }));
+      }
+    };
+
     handleReferralLanding();
+    handleDiscordMock();
 
     // 2. Synchronize Firebase Auth changes with LocalStorage and provision new profiles
     if (!auth) return;

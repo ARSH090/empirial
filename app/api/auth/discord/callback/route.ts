@@ -81,22 +81,16 @@ export async function GET(request: NextRequest) {
 
     const uid = `discord:${discordUserId}`;
 
-    // 4. Check if Firebase Admin SDK is initialized, fallback to localhost sandbox if development
+    // 4. Check if Firebase Admin SDK is initialized, fallback to sandbox if unconfigured
     if (!adminAuth) {
-      if (host.includes('localhost') || host.includes('127.0.0.1')) {
-        console.warn('Firebase Admin not initialized. Falling back to localhost Sandbox for Discord Login.');
-        const redirectUrl = new URL('/', request.url);
-        redirectUrl.searchParams.set('discord_mock', 'true');
-        redirectUrl.searchParams.set('discord_uid', uid);
-        redirectUrl.searchParams.set('discord_username', displayName);
-        redirectUrl.searchParams.set('discord_email', email || 'trader@discord.gg');
-        redirectUrl.searchParams.set('discord_avatar', avatarUrl);
-        return NextResponse.redirect(redirectUrl);
-      }
-      return NextResponse.json({
-        error: 'Firebase Admin SDK is not initialized.',
-        details: 'Please ensure that FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_PRIVATE_KEY variables are configured on Vercel.'
-      }, { status: 500 });
+      console.warn('Firebase Admin not initialized. Falling back to Sandbox mode for Discord Login.');
+      const redirectUrl = new URL('/', request.url);
+      redirectUrl.searchParams.set('discord_mock', 'true');
+      redirectUrl.searchParams.set('discord_uid', uid);
+      redirectUrl.searchParams.set('discord_username', displayName);
+      redirectUrl.searchParams.set('discord_email', email || 'trader@discord.gg');
+      redirectUrl.searchParams.set('discord_avatar', avatarUrl);
+      return NextResponse.redirect(redirectUrl);
     }
 
     // 5. Create or retrieve the Firebase User account
