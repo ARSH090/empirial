@@ -30,11 +30,38 @@ export default function NavBar() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    // Check if Discord custom token is returned in search params
     const urlParams = new URLSearchParams(window.location.search);
+    const discordMock = urlParams.get("discord_mock");
     const discordToken = urlParams.get("discord_token");
 
-    if (discordToken) {
+    if (discordMock) {
+      // Clean mock variables from the URL immediately
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+
+      const mockUid = urlParams.get("discord_uid") || "discord:sandbox";
+      const mockUsername = urlParams.get("discord_username") || "Discord Sandbox Trader";
+      const mockEmail = urlParams.get("discord_email") || "sandbox@discord.gg";
+      const mockAvatar = urlParams.get("discord_avatar") || undefined;
+
+      const userProfile: UserProfile = {
+        uid: mockUid,
+        displayName: mockUsername,
+        email: mockEmail,
+        phoneNumber: "+1 (555) 812-9901",
+        role: "trader",
+        traderId: `EMP-${mockUid.substring(8, 13).toUpperCase()}`,
+        referral_code: `EMP-${mockUid.substring(8, 13).toUpperCase()}`,
+        avatarUrl: mockAvatar,
+        points: 2500,
+        accountsPurchased: [],
+        country: "Global",
+        discordHandle: `@${mockUsername.toLowerCase().replace(/\s+/g, "_")}`,
+        bio: "Connected via Local Discord Sandbox. Community member on EMPIRIAL 2.0.",
+      };
+      saveUser(userProfile);
+      setCurrentUser(userProfile);
+    } else if (discordToken) {
       // Clean token from the URL immediately
       const newUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, newUrl);

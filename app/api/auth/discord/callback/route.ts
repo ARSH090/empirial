@@ -9,14 +9,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Authorization code is missing' }, { status: 400 });
   }
 
-  // 1. Check if Firebase Admin SDK is initialized
-  if (!adminAuth) {
-    return NextResponse.json({
-      error: 'Firebase Admin SDK is not initialized.',
-      details: 'Please ensure that FIREBASE_SERVICE_ACCOUNT_KEY (containing valid "private_key" and "client_email") is set in your Vercel or local environment variables.'
-    }, { status: 500 });
-  }
-
+  // 1. Credentials config validation check
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
   
@@ -88,7 +81,25 @@ export async function GET(request: NextRequest) {
 
     const uid = `discord:${discordUserId}`;
 
-    // 4. Create or retrieve the Firebase User account
+    // 4. Check if Firebase Admin SDK is initialized, fallback to localhost sandbox if development
+    if (!adminAuth) {
+      if (host.includes('localhost') || host.includes('127.0.0.1')) {
+        console.warn('Firebase Admin not initialized. Falling back to localhost Sandbox for Discord Login.');
+        const redirectUrl = new URL('/', request.url);
+        redirectUrl.searchParams.set('discord_mock', 'true');
+        redirectUrl.searchParams.set('discord_uid', uid);
+        redirectUrl.searchParams.set('discord_username', displayName);
+        redirectUrl.searchParams.set('discord_email', email || 'trader@discord.gg');
+        redirectUrl.searchParams.set('discord_avatar', avatarUrl);
+        return NextResponse.redirect(redirectUrl);
+      }
+      return NextResponse.json({
+        error: 'Firebase Admin SDK is not initialized.',
+        details: 'Please ensure that FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_PRIVATE_KEY variables are configured on Vercel.'
+      }, { status: 500 });
+    }
+
+    // 5. Create or retrieve the Firebase User account
     let userRecord;
     try {
       userRecord = await adminAuth.getUser(uid);
@@ -112,7 +123,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 5. Generate a custom Firebase Auth Token
+    // 6. Generate a custom Firebase Auth Token
     const customToken = await adminAuth.createCustomToken(uid);
 
     // 6. Redirect back to the home page with the token

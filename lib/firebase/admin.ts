@@ -7,23 +7,24 @@ let adminAuth: Auth;
 
 if (getApps().length === 0) {
   try {
+    let serviceAccount = null;
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      let serviceAccount;
       try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        const parsed = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        if (parsed && parsed.private_key && parsed.client_email) {
+          serviceAccount = parsed;
+        }
       } catch (jsonErr) {
         console.error('Firebase Admin: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:', jsonErr);
       }
+    }
 
-      if (serviceAccount && serviceAccount.private_key && serviceAccount.client_email) {
-        initializeApp({
-          credential: cert(serviceAccount),
-          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-        });
-        console.log('Firebase Admin initialized successfully with Service Account Key.');
-      } else {
-        console.warn('Firebase Admin: FIREBASE_SERVICE_ACCOUNT_KEY has empty/missing private_key or client_email.');
-      }
+    if (serviceAccount) {
+      initializeApp({
+        credential: cert(serviceAccount),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      });
+      console.log('Firebase Admin initialized successfully with Service Account Key.');
     } else if (
       process.env.FIREBASE_CLIENT_EMAIL && 
       process.env.FIREBASE_PRIVATE_KEY && 
