@@ -156,7 +156,7 @@ export default function NavBar() {
             {/* Brand Name (Mobile) */}
             <div className="flex sm:hidden">
               <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-lg text-foreground">
-                <LogoTridentE size={24} />
+                <LogoTridentE size={28} />
                 <span>EMPIRIAL</span>
               </Link>
             </div>
@@ -165,7 +165,7 @@ export default function NavBar() {
             <div className="hidden sm:flex items-center space-x-6 md:space-x-8">
               <Link href="/" className="flex items-center gap-2 group">
                 <div className="group-hover:scale-105 transition-transform">
-                  <LogoTridentE size={32} />
+                  <LogoTridentE size={38} />
                 </div>
                 <span className="font-bold tracking-tight text-xl md:text-2xl text-foreground">
                   EMPIRIAL
