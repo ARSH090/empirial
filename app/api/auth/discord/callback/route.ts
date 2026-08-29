@@ -2,30 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase/admin';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get('code');
-
-  if (!code) {
-    return NextResponse.json({ error: 'Authorization code is missing' }, { status: 400 });
-  }
-
-  // 1. Credentials config validation check
-  const clientId = process.env.DISCORD_CLIENT_ID;
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
-  
-  if (!clientId || !clientSecret) {
-    return NextResponse.json({
-      error: 'Discord OAuth credentials missing.',
-      details: 'Please ensure DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET are configured in your environment variables.'
-    }, { status: 200 });
-  }
-  
-  // Construct redirect URI dynamically to match the current running environment (dev vs production Vercel)
-  const host = request.headers.get('host') || 'localhost:3000';
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
-
   try {
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get('code');
+
+    if (!code) {
+      return NextResponse.json({ error: 'Authorization code is missing' }, { status: 400 });
+    }
+
+    // 1. Credentials config validation check
+    const clientId = process.env.DISCORD_CLIENT_ID;
+    const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+      return NextResponse.json({
+        error: 'Discord OAuth credentials missing.',
+        details: 'Please ensure DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET are configured in your environment variables.'
+      }, { status: 200 });
+    }
+    
+    // Construct redirect URI dynamically to match the current running environment (dev vs production Vercel)
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
+
     // 2. Exchange OAuth2 authorization code for an access token
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
