@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       error: 'Discord OAuth credentials missing.',
       details: 'Please ensure DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET are configured in your environment variables.'
-    }, { status: 500 });
+    }, { status: 200 });
   }
   
   // Construct redirect URI dynamically to match the current running environment (dev vs production Vercel)
@@ -131,6 +131,6 @@ export async function GET(request: NextRequest) {
       error: 'Unexpected server error during Discord OAuth',
       message: error?.message || String(error),
       stack: error?.stack || null
-    }, { status: 500 });
+    }, { status: 200 });
   }
 }
