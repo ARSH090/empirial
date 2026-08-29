@@ -17,8 +17,8 @@ const Footer = () => {
     async function loadFooter() {
       try {
         const data = await getSiteSettings();
-        if (data && data.footer) {
-          setSettings(data.footer);
+        if (data) {
+          setSettings(data);
         }
       } catch (err) {
         console.error("Failed to load footer settings:", err);
@@ -27,19 +27,19 @@ const Footer = () => {
     loadFooter();
   }, []);
 
-  const brandName = settings?.brandName || "EMPIRIAL";
-  const tagline = settings?.tagline || "Prop Trading Intelligence & Evaluation Platform.";
-  const copyrightText = settings?.copyrightText || `© ${year} EMPIRIAL. All rights reserved.`;
+  const brandName = settings?.brandName || settings?.footer?.brandName || "EMPIRIAL";
+  const tagline = settings?.tagline || settings?.footer?.tagline || "Prop Trading Intelligence & Evaluation Platform.";
+  const copyrightText = settings?.copyrightText || settings?.footer?.copyrightText || `© ${year} ${brandName}. All rights reserved.`;
 
   const socialLinks = [
     {
       name: "Twitter",
-      href: "https://x.com/empirial",
+      href: settings?.twitterUrl || "https://x.com/empirial",
       icon: TwitterLogoIcon,
     },
     {
       name: "GitHub",
-      href: "https://github.com/empirial",
+      href: settings?.githubUrl || "https://github.com/empirial",
       icon: GitHubLogoIcon,
     },
   ];

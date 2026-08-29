@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -23,6 +23,7 @@ import { MOCK_REVIEWS } from '@/lib/data/reviews-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Review, Firm } from '@/lib/types';
 import { getStoredUser, openAuthModal } from '@/lib/utils/auth-store';
+import { getReviews, getFirms, createReview } from '@/lib/firebase/services';
 import {
   Tooltip,
   TooltipContent,
@@ -31,11 +32,13 @@ import {
 } from '@/components/ui/tooltip';
 
 export function ReviewsClient() {
-  const [reviewsList, setReviewsList] = useState<Review[]>(MOCK_REVIEWS);
+  const [reviewsList, setReviewsList] = useState<Review[]>([]);
+  const [firmsList, setFirmsList] = useState<Firm[]>([]);
   const [selectedFirmSlugs, setSelectedFirmSlugs] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredFirmId, setHoveredFirmId] = useState<string | null>(null);
   const [expandedFirmId, setExpandedFirmId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Review Modal State
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
@@ -48,6 +51,23 @@ export function ReviewsClient() {
   const [payoutRating, setPayoutRating] = useState<number>(5);
   const [usabilityRating, setUsabilityRating] = useState<number>(5);
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
+
+  useEffect(() => {
+    async function loadReviewsData() {
+      try {
+        const [revs, fms] = await Promise.all([getReviews(), getFirms()]);
+        setReviewsList(revs.length > 0 ? revs : MOCK_REVIEWS);
+        setFirmsList(fms.length > 0 ? fms : MOCK_FIRMS);
+      } catch (err) {
+        console.error('Failed to load reviews dynamic data:', err);
+        setReviewsList(MOCK_REVIEWS);
+        setFirmsList(MOCK_FIRMS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadReviewsData();
+  }, []);
 
   // Toggle multi-select firm filter
   const toggleFirmFilter = (firmId: string) => {
@@ -77,15 +97,15 @@ export function ReviewsClient() {
   };
 
   // Submit Review Handler
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !reviewTitle.trim() || !reviewBody.trim()) return;
 
-    const firmObj = MOCK_FIRMS.find((f) => f.id === selectedModalFirmId || f.slug === selectedModalFirmId);
+    const listFirms = firmsList.length > 0 ? firmsList : MOCK_FIRMS;
+    const firmObj = listFirms.find((f) => f.id === selectedModalFirmId || f.slug === selectedModalFirmId);
     const overall = Math.round((tradingRating + customerCareRating + payoutRating + usabilityRating) / 4);
 
-    const newRev: Review = {
-      id: 'rev-' + Date.now(),
+    const newRev: Omit<Review, 'id' | 'created_at'> = {
       firm_id: selectedModalFirmId,
       firm_name: firmObj?.name || 'Verified Firm',
       user_name: fullName.toLowerCase().replace(/\s+/g, ''),
@@ -99,10 +119,26 @@ export function ReviewsClient() {
       payout_process: payoutRating,
       is_verified_trader: true,
       upvotes: 1,
-      created_at: new Date().toISOString().split('T')[0],
     };
 
-    setReviewsList([newRev, ...reviewsList]);
+    try {
+      const id = await createReview(newRev);
+      const inserted: Review = {
+        id,
+        created_at: new Date().toISOString().split('T')[0],
+        ...newRev
+      };
+      setReviewsList([inserted, ...reviewsList]);
+    } catch (err) {
+      console.error('Failed to create review in Firestore:', err);
+      const inserted: Review = {
+        id: 'rev-' + Date.now(),
+        created_at: new Date().toISOString().split('T')[0],
+        ...newRev
+      };
+      setReviewsList([inserted, ...reviewsList]);
+    }
+
     setIsSubmittedSuccess(true);
 
     setTimeout(() => {
@@ -120,7 +156,8 @@ export function ReviewsClient() {
 
   // Map firms with calculated review metrics & reviews list
   const firmRows = useMemo(() => {
-    return MOCK_FIRMS.map((firm) => {
+    const listFirms = firmsList.length > 0 ? firmsList : MOCK_FIRMS;
+    return listFirms.map((firm) => {
       // Find all reviews matching firm
       const matchingReviews = reviewsList.filter(
         (r) =>

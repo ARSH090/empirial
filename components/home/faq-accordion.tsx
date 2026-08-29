@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { HelpCircle } from "lucide-react";
 import {
@@ -10,8 +10,28 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { FAQ_ITEMS } from "@/lib/data/site-data";
+import { getFaqs } from "@/lib/firebase/services";
 
 export function FaqAccordion() {
+  const [faqs, setFaqs] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadFaqs() {
+      try {
+        const data = await getFaqs();
+        if (data && data.length > 0) {
+          setFaqs(data);
+        } else {
+          setFaqs(FAQ_ITEMS);
+        }
+      } catch (err) {
+        console.error("Failed to load FAQs:", err);
+        setFaqs(FAQ_ITEMS);
+      }
+    }
+    loadFaqs();
+  }, []);
+
   return (
     <motion.section
       initial={{ y: 20, opacity: 0 }}
@@ -35,7 +55,7 @@ export function FaqAccordion() {
 
       <div className="rounded-2xl border border-border/80 bg-card/60 p-6 sm:p-8 backdrop-blur-md shadow-sm">
         <Accordion type="single" collapsible defaultValue="item-0" className="w-full">
-          {FAQ_ITEMS.map((item, index) => (
+          {faqs.map((item, index) => (
             <AccordionItem
               key={index}
               value={`item-${index}`}

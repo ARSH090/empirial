@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, X, Building2, Trophy, Tag, FileText, ArrowRight } from 'lucide-react';
+import { Search, X, Trophy, Tag, ArrowRight } from 'lucide-react';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
+import { getFirms, getChallenges, getDeals } from '@/lib/firebase/services';
+import { Firm, Challenge, Deal } from '@/lib/types';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -14,6 +16,9 @@ interface SearchModalProps {
 
 export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState('');
+  const [firms, setFirms] = useState<Firm[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -27,22 +32,40 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    async function loadSearchData() {
+      try {
+        const [fData, cData, dData] = await Promise.all([getFirms(), getChallenges(), getDeals()]);
+        setFirms(fData.length > 0 ? fData : MOCK_FIRMS);
+        setChallenges(cData.length > 0 ? cData : MOCK_CHALLENGES);
+        setDeals(dData.length > 0 ? dData : MOCK_DEALS);
+      } catch (err) {
+        console.error('Failed to load search dynamic data:', err);
+        setFirms(MOCK_FIRMS);
+        setChallenges(MOCK_CHALLENGES);
+        setDeals(MOCK_DEALS);
+      }
+    }
+    loadSearchData();
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const filteredFirms = MOCK_FIRMS.filter(f =>
+  const filteredFirms = firms.filter(f =>
     f.name.toLowerCase().includes(query.toLowerCase()) ||
-    f.category.toLowerCase().includes(query.toLowerCase())
+    (f.category && f.category.toLowerCase().includes(query.toLowerCase()))
   ).slice(0, 4);
 
-  const filteredChallenges = MOCK_CHALLENGES.filter(c =>
+  const filteredChallenges = challenges.filter(c =>
     c.name.toLowerCase().includes(query.toLowerCase()) ||
     c.firm_name.toLowerCase().includes(query.toLowerCase())
   ).slice(0, 4);
 
-  const filteredDeals = MOCK_DEALS.filter(d =>
+  const filteredDeals = deals.filter(d =>
     d.firm_name.toLowerCase().includes(query.toLowerCase()) ||
     d.code.toLowerCase().includes(query.toLowerCase()) ||
-    d.discount_label.toLowerCase().includes(query.toLowerCase())
+    (d.discount_label && d.discount_label.toLowerCase().includes(query.toLowerCase()))
   ).slice(0, 4);
 
   return (
@@ -91,7 +114,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         {firm.name}
                       </div>
                       <div className="text-[10px] text-slate-400">
-                        {firm.profit_split_custom} • {firm.rating} ★
+                        {firm.profit_split_custom || '90%'} • {firm.rating} ★
                       </div>
                     </div>
                   </div>

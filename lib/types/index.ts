@@ -88,12 +88,14 @@ export interface Deal {
   description: string;
   category: 'forex' | 'futures' | 'crypto' | 'instant-funding';
   affiliate_url: string;
-  clicks_count: number;
+  clicks_count?: number;
   expires_at?: string;
   is_featured: boolean;
   is_verified: boolean;
   rating?: number;
   review_count?: number;
+  created_at?: string;
+  updated_at?: string;
   offer_type?: 'bogo' | 'cashback' | 'refund' | 'discount';
   offer_badge?: string;
   refund_pct?: number;
@@ -128,13 +130,15 @@ export interface Payout {
 
 export interface BrokerSpread {
   id: string;
-  broker_name: string;
+  broker_name?: string;
   pair: 'EURUSD' | 'GBPUSD' | 'USDJPY' | 'XAUUSD' | 'BTCUSD' | 'US30';
   spread_pips: number;
   commission_per_lot: number;
   account_type: string;
   platform: string;
-  is_active: boolean;
+  is_active?: boolean;
+  feed_name?: string;
+  status?: string;
 }
 
 export type EventCategory = 'giveaway' | 'event';
@@ -252,10 +256,13 @@ export interface LoyaltyReward {
   id: string;
   title: string;
   points_cost: number;
-  reward_type: 'voucher' | 'merchandise' | 'cashback';
-  stock: number;
-  is_active: boolean;
+  reward_type?: 'voucher' | 'merchandise' | 'cashback';
+  stock?: number;
+  is_active?: boolean;
   description: string;
+  voucher_code?: string;
+  is_available?: boolean;
+  category?: string;
 }
 
 export interface MarketTicker {

@@ -16,12 +16,13 @@ import {
 } from 'lucide-react';
 import { MOCK_PAYOUTS } from '@/lib/data/payouts-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
-import { Payout } from '@/lib/types';
-import { getPayouts, createPayout } from '@/lib/firebase/services';
+import { Payout, Firm } from '@/lib/types';
+import { getPayouts, createPayout, getFirms } from '@/lib/firebase/services';
 import { useEffect } from 'react';
 
 export function PayoutsClient() {
   const [payoutsList, setPayoutsList] = useState<Payout[]>([]);
+  const [firmsList, setFirmsList] = useState<Firm[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
   const [selectedConcept, setSelectedConcept] = useState<string>('all');
@@ -40,15 +41,16 @@ export function PayoutsClient() {
   useEffect(() => {
     async function loadPayouts() {
       try {
-        const data = await getPayouts();
-        if (data && data.length > 0) {
-          setPayoutsList(data);
-        } else {
-          setPayoutsList(MOCK_PAYOUTS);
+        const [payData, firmsData] = await Promise.all([getPayouts(), getFirms()]);
+        setPayoutsList(payData.length > 0 ? payData : MOCK_PAYOUTS);
+        setFirmsList(firmsData.length > 0 ? firmsData : MOCK_FIRMS);
+        if (firmsData.length > 0) {
+          setFirmName(firmsData[0].name);
         }
       } catch (err) {
         console.error('Failed to load payouts:', err);
         setPayoutsList(MOCK_PAYOUTS);
+        setFirmsList(MOCK_FIRMS);
       } finally {
         setLoading(false);
       }
@@ -146,7 +148,7 @@ export function PayoutsClient() {
             className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-semibold"
           >
             <option value="all">All Prop Firms</option>
-            {MOCK_FIRMS.map(f => (
+            {(firmsList.length > 0 ? firmsList : MOCK_FIRMS).map(f => (
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
@@ -330,7 +332,7 @@ export function PayoutsClient() {
                       onChange={(e) => setFirmName(e.target.value)}
                       className="w-full bg-elevation-base border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
                     >
-                      {MOCK_FIRMS.map(f => (
+                      {((firmsList && firmsList.length > 0) ? firmsList : MOCK_FIRMS).map(f => (
                         <option key={f.id} value={f.name}>{f.name}</option>
                       ))}
                     </select>

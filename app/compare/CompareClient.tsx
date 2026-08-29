@@ -28,6 +28,7 @@ import {
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { Firm, Challenge } from '@/lib/types';
+import { getFirms, getChallenges } from '@/lib/firebase/services';
 import {
   calculateFirmComparisonScores,
   calculateChallengeComparisonScores,
@@ -79,6 +80,33 @@ export function CompareClient() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Db States
+  const [dbFirms, setDbFirms] = useState<Firm[]>([]);
+  const [dbChallenges, setDbChallenges] = useState<Challenge[]>([]);
+
+  useEffect(() => {
+    async function loadCompareData() {
+      try {
+        const [fData, cData] = await Promise.all([getFirms(), getChallenges()]);
+        if (fData && fData.length > 0) {
+          setDbFirms(fData);
+        } else {
+          setDbFirms(MOCK_FIRMS);
+        }
+        if (cData && cData.length > 0) {
+          setDbChallenges(cData);
+        } else {
+          setDbChallenges(MOCK_CHALLENGES);
+        }
+      } catch (err) {
+        console.error('Failed to load dynamic compare data:', err);
+        setDbFirms(MOCK_FIRMS);
+        setDbChallenges(MOCK_CHALLENGES);
+      }
+    }
+    loadCompareData();
+  }, []);
+
   // Close dropdown on outside click or Escape
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -109,17 +137,19 @@ export function CompareClient() {
 
   // Resolve selected Firms
   const selectedFirms = useMemo(() => {
+    const list = dbFirms.length > 0 ? dbFirms : MOCK_FIRMS;
     return selectedFirmSlugs
-      .map((slug) => MOCK_FIRMS.find((f) => f.slug === slug || f.id === slug))
+      .map((slug) => list.find((f) => f.slug === slug || f.id === slug))
       .filter(Boolean) as Firm[];
-  }, [selectedFirmSlugs]);
+  }, [selectedFirmSlugs, dbFirms]);
 
   // Resolve selected Challenges
   const selectedChallenges = useMemo(() => {
+    const list = dbChallenges.length > 0 ? dbChallenges : MOCK_CHALLENGES;
     return selectedChallengeIds
-      .map((id) => MOCK_CHALLENGES.find((ch) => ch.id === id || ch.firm_slug === id))
+      .map((id) => list.find((ch) => ch.id === id || ch.firm_slug === id))
       .filter(Boolean) as Challenge[];
-  }, [selectedChallengeIds]);
+  }, [selectedChallengeIds, dbChallenges]);
 
   // Handle Add / Remove
   const handleAddFirm = (slug: string) => {
@@ -210,22 +240,24 @@ export function CompareClient() {
 
   // Filter available items for addition
   const availableFirms = useMemo(() => {
-    return MOCK_FIRMS.filter(
+    const list = dbFirms.length > 0 ? dbFirms : MOCK_FIRMS;
+    return list.filter(
       (f) =>
         !selectedFirmSlugs.includes(f.slug) &&
         f.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [selectedFirmSlugs, searchQuery]);
+  }, [selectedFirmSlugs, searchQuery, dbFirms]);
 
   const availableChallenges = useMemo(() => {
-    return MOCK_CHALLENGES.filter(
+    const list = dbChallenges.length > 0 ? dbChallenges : MOCK_CHALLENGES;
+    return list.filter(
       (ch) =>
         !selectedChallengeIds.includes(ch.id) &&
         (ch.firm_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           ch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           `$${ch.account_size}`.includes(searchQuery))
     );
-  }, [selectedChallengeIds, searchQuery]);
+  }, [selectedChallengeIds, searchQuery, dbChallenges]);
 
   return (
     <div className="relative flex flex-col min-h-screen bg-background text-foreground py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-200 overflow-x-clip">

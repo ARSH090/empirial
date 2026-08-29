@@ -180,6 +180,27 @@ export async function getChallengesByFirm(firmId: string): Promise<Challenge[]> 
   return mapSnapshot<Challenge>(snap);
 }
 
+export async function getDealsByFirm(firmId: string): Promise<Deal[]> {
+  if (!db) return [];
+  const colRef = collection(db, 'deals');
+  const snap = await getDocs(query(colRef, where('firm_id', '==', firmId)));
+  return mapSnapshot<Deal>(snap);
+}
+
+export async function getReviewsByFirm(firmId: string): Promise<Review[]> {
+  if (!db) return [];
+  const colRef = collection(db, 'reviews');
+  const snap = await getDocs(query(colRef, where('firm_id', '==', firmId)));
+  return mapSnapshot<Review>(snap);
+}
+
+export async function getPayoutsByFirm(firmId: string): Promise<Payout[]> {
+  if (!db) return [];
+  const colRef = collection(db, 'payouts');
+  const snap = await getDocs(query(colRef, where('firm_id', '==', firmId)));
+  return mapSnapshot<Payout>(snap);
+}
+
 export async function createChallenge(challenge: Omit<Challenge, 'id'>): Promise<string> {
   if (!db) throw new Error('Firestore not initialized');
   const docRef = doc(collection(db, 'challenges'));

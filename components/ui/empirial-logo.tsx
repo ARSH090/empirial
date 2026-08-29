@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { getSiteSettings } from "@/lib/firebase/services";
 
 interface EmpirialLogoProps {
   height?: number | string; // Height of the logo PNG in pixels or CSS units
@@ -19,6 +20,29 @@ export const EmpirialLogo: React.FC<EmpirialLogoProps> = ({
   href = "/",
 }) => {
   const hDim = typeof height === "number" ? `${height}px` : height;
+  const [logoSettings, setLogoSettings] = useState({
+    brandName: 'EMPIRIAL',
+    logoDark: '/logos/empirial-trident-dark.png',
+    logoLight: '/logos/empirial-trident-light.png'
+  });
+
+  useEffect(() => {
+    async function loadLogo() {
+      try {
+        const settings = await getSiteSettings();
+        if (settings) {
+          setLogoSettings({
+            brandName: settings.brandName || settings.footer?.brandName || 'EMPIRIAL',
+            logoDark: settings.logoDarkUrl || '/logos/empirial-trident-dark.png',
+            logoLight: settings.logoLightUrl || '/logos/empirial-trident-light.png'
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load dynamic logo settings:', err);
+      }
+    }
+    loadLogo();
+  }, []);
 
   const content = (
     <div className={`inline-flex items-center gap-2.5 group select-none ${className}`}>
@@ -26,15 +50,15 @@ export const EmpirialLogo: React.FC<EmpirialLogoProps> = ({
       <div className="relative shrink-0 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
         {/* 1st Image PNG Logo (Black Theme: White Trident with Transparent Background) */}
         <img
-          src="/logos/empirial-trident-dark.png"
-          alt="EMPIRIAL Logo"
+          src={logoSettings.logoDark}
+          alt={`${logoSettings.brandName} Logo`}
           className="hidden dark:block object-contain"
           style={{ height: hDim, width: "auto" }}
         />
         {/* 2nd Image PNG Logo (White Theme: Black Trident with Transparent Background) */}
         <img
-          src="/logos/empirial-trident-light.png"
-          alt="EMPIRIAL Logo"
+          src={logoSettings.logoLight}
+          alt={`${logoSettings.brandName} Logo`}
           className="block dark:hidden object-contain"
           style={{ height: hDim, width: "auto" }}
         />
@@ -42,7 +66,7 @@ export const EmpirialLogo: React.FC<EmpirialLogoProps> = ({
 
       {showText && (
         <span className={`text-foreground transition-colors group-hover:opacity-90 ${textSize}`}>
-          EMPIRIAL
+          {logoSettings.brandName}
         </span>
       )}
     </div>
@@ -50,7 +74,7 @@ export const EmpirialLogo: React.FC<EmpirialLogoProps> = ({
 
   if (href) {
     return (
-      <Link href={href} aria-label="EMPIRIAL Homepage" className="inline-flex items-center">
+      <Link href={href} aria-label={`${logoSettings.brandName} Homepage`} className="inline-flex items-center">
         {content}
       </Link>
     );

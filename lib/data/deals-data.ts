@@ -1,3 +1,79 @@
 import { Deal } from '@/lib/types';
 
-export const MOCK_DEALS: Deal[] = [];
+export const MOCK_DEALS: Deal[] = [
+  {
+    id: 'deal-nys-empire',
+    firm_id: 'nys',
+    firm_name: 'NYS Capital',
+    firm_slug: 'nys-capital',
+    code: 'EMPIRE',
+    discount_pct: 20,
+    discount_label: 'Get 20% off NYS Capital evaluation challenges',
+    description: 'Use code EMPIRE at checkout to get an instant 20% discount on all challenge sizes.',
+    affiliate_url: 'https://nyscapital.com?ref=empirial',
+    is_featured: true,
+    is_verified: true,
+    created_at: '2026-01-01',
+    category: 'forex'
+  },
+  {
+    id: 'deal-ck-empire',
+    firm_id: 'ck-capital',
+    firm_name: 'CK Capital',
+    firm_slug: 'ck-capital',
+    code: 'EMPIRE',
+    discount_pct: 28,
+    discount_label: 'Exclusive 28% off CK Capital Stellar evaluations',
+    description: 'Apply code EMPIRE for an exclusive 28% off any evaluation account size.',
+    affiliate_url: 'https://ckcapital.com?ref=empirial',
+    is_featured: true,
+    is_verified: true,
+    created_at: '2026-01-01',
+    category: 'forex'
+  },
+  {
+    id: 'deal-alpha-empire',
+    firm_id: 'alpha-capital',
+    firm_name: 'Alpha Capital',
+    firm_slug: 'alpha-capital',
+    code: 'EMPIRE',
+    discount_pct: 20,
+    discount_label: 'Save 20% on Alpha Capital Instant Funding accounts',
+    description: 'Save 20% on instant funding with code EMPIRE during checkout.',
+    affiliate_url: 'https://alphacapital.com?ref=empirial',
+    is_featured: false,
+    is_verified: true,
+    created_at: '2026-01-01',
+    category: 'forex'
+  },
+  {
+    id: 'deal-ftmo-empirial',
+    firm_id: 'ftmo',
+    firm_name: 'FTMO',
+    firm_slug: 'ftmo',
+    code: 'EMPIRIAL10',
+    discount_pct: 10,
+    discount_label: 'Claim 10% discount on FTMO evaluation tests',
+    description: 'Empirial exclusive partner discount code for 10% off any evaluation challenge fee.',
+    affiliate_url: 'https://ftmo.com?ref=empirial',
+    is_featured: true,
+    is_verified: true,
+    created_at: '2026-01-01',
+    category: 'forex'
+  },
+  {
+    id: 'deal-pips-empirial',
+    firm_id: 'funding-pips',
+    firm_name: 'Funding Pips',
+    firm_slug: 'funding-pips',
+    code: 'EMPIRIAL',
+    discount_pct: 5,
+    discount_label: 'Get 5% discount on Funding Pips purchases',
+    description: 'Use coupon code EMPIRIAL during purchase to unlock a 5% discount on checkout.',
+    affiliate_url: 'https://fundingpips.com?ref=empirial',
+    is_featured: false,
+    is_verified: true,
+    created_at: '2026-01-01',
+    category: 'forex'
+  }
+];

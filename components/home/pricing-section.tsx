@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CheckIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,28 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { PRICING_PLANS } from "@/lib/data/site-data";
 import { openAuthModal } from "@/lib/utils/auth-store";
+import { getPricingPlans } from "@/lib/firebase/services";
 
 export function PricingSection() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [plans, setPlans] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadPlans() {
+      try {
+        const data = await getPricingPlans();
+        if (data && data.length > 0) {
+          setPlans(data);
+        } else {
+          setPlans(PRICING_PLANS);
+        }
+      } catch (err) {
+        console.error("Failed to load plans:", err);
+        setPlans(PRICING_PLANS);
+      }
+    }
+    loadPlans();
+  }, []);
 
   const handleChoosePlan = (planId: string) => {
     openAuthModal();
@@ -64,7 +83,7 @@ export function PricingSection() {
       </motion.div>
 
       <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3 md:gap-8 items-stretch">
-        {PRICING_PLANS.map((plan, index) => {
+        {plans.map((plan, index) => {
           const isPopular = plan.isPopular;
           const calculatedPrice =
             billingCycle === "annual" ? Math.round(plan.price * 0.8) : plan.price;
@@ -114,7 +133,7 @@ export function PricingSection() {
                   <Separator className="my-5" />
 
                   <ul className="space-y-3">
-                    {plan.features.map((feature, featureIndex) => (
+                    {plan.features.map((feature: string, featureIndex: number) => (
                       <li
                         key={featureIndex}
                         className="flex items-start text-xs text-muted-foreground"

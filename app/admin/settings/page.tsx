@@ -1,12 +1,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, CheckCircle2, Database, AlertTriangle } from 'lucide-react';
+import { Settings, CheckCircle2, Database, AlertTriangle, Globe, Shield, ShieldCheck } from 'lucide-react';
 import { seedDatabase } from '@/lib/firebase/seeder';
 import { getSiteSettings, updateSiteSettings } from '@/lib/firebase/services';
 
 export default function AdminSettingsPage() {
-  const [siteName, setSiteName] = useState('EMPIRIAL');
+  const [brandName, setBrandName] = useState('EMPIRIAL');
+  const [shortName, setShortName] = useState('EMP');
+  const [tagline, setTagline] = useState('Prop Trading Intelligence Matrix');
+  const [copyrightText, setCopyrightText] = useState('© 2026 EMPIRIAL. All rights reserved.');
+  const [contactEmail, setContactEmail] = useState('support@empirial.com');
+  const [twitterUrl, setTwitterUrl] = useState('https://x.com/empirial');
+  const [githubUrl, setTwitterGithub] = useState('https://github.com/empirial');
+  const [discordUrl, setDiscordUrl] = useState('https://discord.gg/empirial');
+  
+  const [logoDark, setLogoDark] = useState('/logos/empirial-trident-dark.png');
+  const [logoLight, setLogoLight] = useState('/logos/empirial-trident-light.png');
+  const [favicon, setFavicon] = useState('/favicon.ico');
+
   const [maintenance, setMaintenance] = useState(false);
   const [eventPopup, setEventPopup] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -20,9 +32,17 @@ export default function AdminSettingsPage() {
       try {
         const settings = await getSiteSettings();
         if (settings) {
-          if (settings.footer && settings.footer.brandName) {
-            setSiteName(settings.footer.brandName);
-          }
+          setBrandName(settings.brandName || settings.footer?.brandName || 'EMPIRIAL');
+          setShortName(settings.shortName || 'EMP');
+          setTagline(settings.tagline || settings.footer?.tagline || 'Prop Trading Intelligence Matrix');
+          setCopyrightText(settings.copyrightText || settings.footer?.copyrightText || '© 2026 EMPIRIAL. All rights reserved.');
+          setContactEmail(settings.contactEmail || 'support@empirial.com');
+          setTwitterUrl(settings.twitterUrl || 'https://x.com/empirial');
+          setTwitterGithub(settings.githubUrl || 'https://github.com/empirial');
+          setDiscordUrl(settings.discordUrl || 'https://discord.gg/empirial');
+          setLogoDark(settings.logoDarkUrl || '/logos/empirial-trident-dark.png');
+          setLogoLight(settings.logoLightUrl || '/logos/empirial-trident-light.png');
+          setFavicon(settings.faviconUrl || '/favicon.ico');
           setMaintenance(settings.maintenanceMode ?? false);
           setEventPopup(settings.eventPopupEnabled ?? true);
         }
@@ -35,12 +55,44 @@ export default function AdminSettingsPage() {
     loadSettings();
   }, []);
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'dark' | 'light' | 'favicon') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size exceeds the 2MB limit.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      if (target === 'dark') setLogoDark(base64String);
+      else if (target === 'light') setLogoLight(base64String);
+      else if (target === 'favicon') setFavicon(base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await updateSiteSettings({
+        brandName,
+        shortName,
+        tagline,
+        copyrightText,
+        contactEmail,
+        twitterUrl,
+        githubUrl,
+        discordUrl,
+        logoDarkUrl: logoDark,
+        logoLightUrl: logoLight,
+        faviconUrl: favicon,
         footer: {
-          brandName: siteName
+          brandName,
+          tagline,
+          copyrightText
         },
         maintenanceMode: maintenance,
         eventPopupEnabled: eventPopup
@@ -60,7 +112,7 @@ export default function AdminSettingsPage() {
       setSeedSuccess(true);
     } catch (err) {
       console.error('Seeding failed:', err);
-      alert('Firestore seeding failed. Please check console for configuration or authentication details.');
+      alert('Firestore seeding failed. Please check console for configuration details.');
     } finally {
       setSeeding(false);
     }
@@ -78,46 +130,199 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-8">
       <div className="border-b border-white/10 pb-4">
-        <h1 className="text-2xl font-bold text-white">System Settings & Configuration</h1>
-        <p className="text-xs text-slate-400">Configure global metadata, event popup banners, and system parameters.</p>
+        <h1 className="text-xl font-semibold sm:text-2xl text-white">System Settings & Configuration</h1>
+        <p className="text-xs text-slate-400 font-mono">Configure site branding, logos, social networks, and database seeder utilities.</p>
       </div>
 
-      <form onSubmit={handleSave} className="bg-elevation-surface border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6">
-        <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">Platform Brand Title</label>
-          <input
-            type="text"
-            value={siteName}
-            onChange={(e) => setSiteName(e.target.value)}
-            className="w-full bg-elevation-base border border-white/10 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500"
-          />
-        </div>
-
-        <div className="space-y-4 pt-4 border-t border-white/5">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-white block">Event Popup Modal</span>
-              <span className="text-[11px] text-slate-400">Show tournament registration banner on homepage load.</span>
+      <form onSubmit={handleSave} className="bg-elevation-surface border border-white/10 rounded-2xl p-6 sm:p-8 space-y-6">
+        
+        {/* Core Site Brand Details */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/5 pb-2">
+            <Globe className="w-4 h-4 text-cyan-400" />
+            <span>Site Identity Settings</span>
+          </h3>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">Brand Name</label>
+              <input
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                required
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white"
+              />
             </div>
-            <input
-              type="checkbox"
-              checked={eventPopup}
-              onChange={(e) => setEventPopup(e.target.checked)}
-              className="w-4 h-4 accent-purple-500 rounded"
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">Short Name</label>
+              <input
+                type="text"
+                value={shortName}
+                onChange={(e) => setShortName(e.target.value)}
+                required
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">Contact Email</label>
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                required
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-white block">Maintenance Mode</span>
-              <span className="text-[11px] text-slate-400">Temporarily restrict public access during scheduled database migrations.</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">Tagline / Mission statement</label>
+              <input
+                type="text"
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                required
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white"
+              />
             </div>
-            <input
-              type="checkbox"
-              checked={maintenance}
-              onChange={(e) => setMaintenance(e.target.checked)}
-              className="w-4 h-4 accent-purple-500 rounded"
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">Copyright Footer Text</label>
+              <input
+                type="text"
+                value={copyrightText}
+                onChange={(e) => setCopyrightText(e.target.value)}
+                required
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Logo Management with Previews */}
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/5 pb-2">
+            <Settings className="w-4 h-4 text-cyan-400" />
+            <span>Logo & Favicon Asset Management</span>
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {/* Logo Light */}
+            <div className="p-4 rounded-xl bg-elevation-base border border-white/10 space-y-3">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Logo Light Theme</span>
+              <div className="w-full h-16 bg-white border border-zinc-200 rounded-lg flex items-center justify-center overflow-hidden p-2">
+                <img src={logoLight} alt="Light Logo Preview" className="object-contain max-h-full" />
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleLogoUpload(e, 'light')}
+                className="w-full text-xs text-slate-300"
+              />
+            </div>
+
+            {/* Logo Dark */}
+            <div className="p-4 rounded-xl bg-elevation-base border border-white/10 space-y-3">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Logo Dark Theme</span>
+              <div className="w-full h-16 bg-black border border-white/10 rounded-lg flex items-center justify-center overflow-hidden p-2">
+                <img src={logoDark} alt="Dark Logo Preview" className="object-contain max-h-full" />
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleLogoUpload(e, 'dark')}
+                className="w-full text-xs text-slate-300"
+              />
+            </div>
+
+            {/* Favicon */}
+            <div className="p-4 rounded-xl bg-elevation-base border border-white/10 space-y-3">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Browser Favicon</span>
+              <div className="w-full h-16 bg-elevation-card border border-white/10 rounded-lg flex items-center justify-center overflow-hidden p-2">
+                <img src={favicon} alt="Favicon Preview" className="object-contain w-8 h-8" />
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleLogoUpload(e, 'favicon')}
+                className="w-full text-xs text-slate-300"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Social Networks Links */}
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/5 pb-2">
+            <Globe className="w-4 h-4 text-cyan-400" />
+            <span>Social Network URLs</span>
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">Twitter / X URL</label>
+              <input
+                type="url"
+                value={twitterUrl}
+                onChange={(e) => setTwitterUrl(e.target.value)}
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">GitHub Organization URL</label>
+              <input
+                type="url"
+                value={githubUrl}
+                onChange={(e) => setTwitterGithub(e.target.value)}
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-slate-400 font-medium">Discord Server URL</label>
+              <input
+                type="url"
+                value={discordUrl}
+                onChange={(e) => setDiscordUrl(e.target.value)}
+                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Popup Settings & Maintenance */}
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/5 pb-2">
+            <Shield className="w-4 h-4 text-cyan-400" />
+            <span>Security & Interactivity Controls</span>
+          </h3>
+
+          <div className="space-y-4 text-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-white block">Event Popup Modal</span>
+                <span className="text-[11px] text-slate-400">Show tournament registration banner on homepage load.</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={eventPopup}
+                onChange={(e) => setEventPopup(e.target.checked)}
+                className="w-4 h-4 accent-white rounded"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-white block">Maintenance Mode</span>
+                <span className="text-[11px] text-slate-400">Temporarily restrict public access during scheduled database migrations.</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={maintenance}
+                onChange={(e) => setMaintenance(e.target.checked)}
+                className="w-4 h-4 accent-white rounded"
+              />
+            </div>
           </div>
         </div>
 
@@ -130,15 +335,15 @@ export default function AdminSettingsPage() {
           )}
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs ml-auto shadow cursor-pointer"
+            className="px-6 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs ml-auto shadow cursor-pointer transition-colors"
           >
             Save System Settings
           </button>
         </div>
       </form>
 
-      {/* Database Utility seeding block */}
-      <div className="bg-elevation-surface border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6">
+      {/* Database Seeding Utility */}
+      <div className="bg-elevation-surface border border-white/10 rounded-2xl p-6 sm:p-8 space-y-6">
         <div className="flex items-center gap-2.5">
           <Database className="w-5 h-5 text-amber-500" />
           <h2 className="text-base font-bold text-white">Database & Seeding Utilities</h2>
@@ -148,7 +353,7 @@ export default function AdminSettingsPage() {
           If your Cloud Firestore database collections are empty, trigger the automated seeding pipeline below to populate it with all pre-structured mock records for Firms, Challenges, Blog Guides, Tournaments, and Spread telemetry.
         </p>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs">
           <div className="flex items-start gap-2 text-amber-400/90 leading-normal max-w-xl">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
@@ -163,7 +368,7 @@ export default function AdminSettingsPage() {
             className={`px-5 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap shadow cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${
               seeding
                 ? 'bg-amber-800 text-amber-300 cursor-not-allowed'
-                : 'bg-amber-500 hover:bg-amber-400 text-black'
+                : 'bg-amber-500 hover:bg-amber-400 text-black font-bold'
             }`}
           >
             {seeding ? (
@@ -178,7 +383,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {seedSuccess && (
-          <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-emerald-400 font-bold flex items-center gap-2">
+          <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-emerald-400 font-bold flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
             <span>All mock records successfully seeded into Firestore!</span>
           </div>

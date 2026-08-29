@@ -122,24 +122,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  const adminNav = [
+  interface AdminNavItem {
+    name: string;
+    href: string;
+    icon: React.ComponentType<any>;
+    badge?: string;
+  }
+
+  const adminNav: AdminNavItem[] = [
     { name: 'Dashboard Overview', href: '/admin', icon: LayoutDashboard },
-    { name: 'Trader Social & Verification', href: '/admin/social', icon: Shield, badge: 'Social' },
     { name: 'Prop Firms Directory', href: '/admin/firms', icon: Building2 },
     { name: 'Evaluation Challenges', href: '/admin/challenges', icon: Trophy },
     { name: 'Discount Promo Deals', href: '/admin/deals', icon: Tag },
-    { name: 'Payout Proofs Queue', href: '/admin/payouts', icon: DollarSign, badge: 'Queue' },
     { name: 'Reviews Moderation', href: '/admin/reviews', icon: Star },
-    { name: 'Referral Tracking', href: '/admin/referrals', icon: Users, badge: 'Leads' },
-    { name: 'Broker Spreads Matrix', href: '/admin/spreads', icon: Activity },
     { name: 'Tournaments & Events', href: '/admin/events', icon: Calendar },
-    { name: 'Industry Awards 2026', href: '/admin/awards', icon: Award },
     { name: 'Blog Article CMS', href: '/admin/blog', icon: BookOpen },
-    { name: 'Loyalty Rewards Store', href: '/admin/loyalty', icon: Gift },
-    { name: 'Live Market Ticker', href: '/admin/market-ticker', icon: Radio },
-    { name: 'Support Inbox', href: '/admin/messages', icon: Mail },
-    { name: 'Page Builder CMS', href: '/admin/page-builder', icon: Sliders },
-    { name: 'Media Library', href: '/admin/media', icon: ImageIcon },
     { name: 'System Settings', href: '/admin/settings', icon: Settings },
   ];
 

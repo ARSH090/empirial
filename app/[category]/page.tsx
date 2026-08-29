@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Trophy, Tag, Building2, ArrowRight, ShieldCheck } from 'lucide-react';
@@ -10,10 +10,33 @@ import { MOCK_DEALS } from '@/lib/data/deals-data';
 import { ProfitSplitGauge } from '@/components/ui/profit-split-gauge';
 import { StrikePrice } from '@/components/ui/strike-price';
 import { CopyButton } from '@/components/ui/copy-button';
+import { getChallenges, getDeals } from '@/lib/firebase/services';
+import { Challenge, Deal } from '@/lib/types';
 
 export default function CategoryLandingPage() {
   const params = useParams();
   const category = (params?.category as string) || 'forex';
+
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [challsData, dealsData] = await Promise.all([getChallenges(), getDeals()]);
+        setChallenges(challsData.length > 0 ? challsData : MOCK_CHALLENGES);
+        setDeals(dealsData.length > 0 ? dealsData : MOCK_DEALS);
+      } catch (err) {
+        console.error('Failed to load category dynamic data:', err);
+        setChallenges(MOCK_CHALLENGES);
+        setDeals(MOCK_DEALS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const categoryTitles: { [key: string]: { title: string; subtitle: string } } = {
     forex: {
@@ -39,8 +62,17 @@ export default function CategoryLandingPage() {
     subtitle: 'Comprehensive audited prop firms, challenges, and exclusive promo codes.',
   };
 
-  const filteredChallenges = MOCK_CHALLENGES.filter(c => c.category === category || category === 'all');
-  const filteredDeals = MOCK_DEALS.filter(d => d.category === category || category === 'all');
+  const filteredChallenges = challenges.filter(c => c.category === category || category === 'all');
+  const filteredDeals = deals.filter(d => d.category === category || category === 'all');
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-zinc-400 font-mono">Loading category dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
