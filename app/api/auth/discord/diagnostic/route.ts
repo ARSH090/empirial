@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebase/admin';
 
 export async function GET(request: NextRequest) {
   const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
