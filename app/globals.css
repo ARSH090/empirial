@@ -87,3 +87,27 @@ body {
 .bg-diagonal-shade {
   background-color: #09090b;
 }
+
+/* ADMIN PORTAL MONOCHROME (B&W) THEME OVERRIDES */
+.admin-portal-bw {
+  --background: #000000;
+  --foreground: #ffffff;
+  --muted-foreground: #a1a1aa;
+  --card: #0A0A0A;
+  --card-foreground: #ffffff;
+  --popover: #0A0A0A;
+  --popover-foreground: #ffffff;
+  --border: #27272a;
+  --input: #27272a;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #18181b;
+  --secondary-foreground: #ffffff;
+  --accent: #18181b;
+  --accent-foreground: #ffffff;
+}
+
+/* UPSCALE FONT SIZES IN ADMIN PORTAL GLOBALLY */
+html:has(.admin-portal-bw) {
+  font-size: 18px; /* Scales up all rem-based typography metrics proportionally */
+}

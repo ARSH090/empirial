@@ -153,29 +153,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <div className="min-h-screen bg-[#07080B] text-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row admin-portal-bw">
       {/* Admin Sidebar */}
-      <aside className="w-full md:w-64 bg-elevation-surface border-r border-white/10 p-5 flex flex-col justify-between shrink-0">
+      <aside className="w-full md:w-64 bg-black border-r border-zinc-800 p-5 flex flex-col justify-between shrink-0">
         <div className="space-y-6">
           {/* Top Admin Badge */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 font-bold text-xs">
+              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center text-white font-bold text-xs">
                 <Shield className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-extrabold text-sm text-white">ADMIN PORTAL</span>
-                <p className="text-[10px] text-purple-400 font-mono">v2.0 Superadmin</p>
+                <span className="font-extrabold text-base text-white">ADMIN PORTAL</span>
+                <p className="text-xs text-zinc-400 font-mono">v2.0 Superadmin</p>
               </div>
             </div>
 
-            <Link href="/" className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5" title="Exit to Public Site">
+            <Link href="/" className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-900" title="Exit to Public Site">
               <ArrowLeft className="w-4 h-4" />
             </Link>
           </div>
 
           {/* Nav List */}
-          <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-200px)] pr-1">
+          <nav className="space-y-1.5 overflow-y-auto max-h-[calc(100vh-200px)] pr-1">
             {adminNav.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
@@ -184,10 +184,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                     isActive
-                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      ? 'bg-white text-black border border-white font-bold'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -195,7 +195,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <span className="truncate">{item.name}</span>
                   </div>
                   {item.badge && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400">
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-zinc-800 text-white border border-zinc-700">
                       {item.badge}
                     </span>
                   )}
@@ -206,14 +206,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Sidebar Footer User Info */}
-        <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs">
+        <div className="pt-4 border-t border-zinc-800 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-[10px]">
+            <div className="w-7 h-7 rounded-full bg-zinc-800 text-white border border-zinc-700 flex items-center justify-center font-bold text-xs">
               AD
             </div>
             <div className="truncate max-w-[90px]">
               <span className="font-bold text-white block truncate">{currentUser?.email || 'Admin'}</span>
-              <span className="text-[10px] text-emerald-400 font-mono">Verified</span>
+              <span className="text-xs text-emerald-400 font-mono">Verified</span>
             </div>
           </div>
           <button 
@@ -223,7 +223,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 router.push('/admin/login');
               }
             }}
-            className="text-[9px] font-bold text-zinc-400 hover:text-white transition-colors uppercase bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
+            className="text-xs font-bold text-zinc-400 hover:text-white transition-colors uppercase bg-zinc-900 hover:bg-zinc-800 px-2.5 py-1.5 rounded"
           >
             Logout
           </button>
