@@ -165,9 +165,13 @@ export function ProfileClient() {
     const user = getStoredUser() || DEMO_TRADER;
     setCurrentUser(user);
     setEditName(user.displayName);
-    setEditPhone(user.phoneNumber || '');
-    setEditDiscord(user.discordHandle || '');
-    setEditCountry(user.country || '');
+    // Clean legacy demo testing data from localStorage if present
+    if (typeof window !== 'undefined') {
+      const savedRefs = localStorage.getItem('empirial_user_referrals');
+      if (savedRefs && (savedRefs.includes('Marcus Chen') || savedRefs.includes('Sarah Jenkins'))) {
+        localStorage.removeItem('empirial_user_referrals');
+      }
+    }
 
     setReviewsList(getStoredUserReviews());
     setTicketsList(getStoredSupportTickets());
@@ -178,7 +182,7 @@ export function ProfileClient() {
       if (e.detail) {
         setCurrentUser(e.detail);
         setEditName(e.detail.displayName);
-        setEditPhone(e.detail.phoneNumber || '+1 (555) 389-2049');
+        setEditPhone(e.detail.phoneNumber || '');
       }
     };
 
@@ -292,15 +296,24 @@ export function ProfileClient() {
     setTicketReplyText('');
   };
 
+  // User-scoped Reviews & Tickets
+  const userReviewsList = useMemo(() => {
+    return reviewsList.filter((r) => r.user_name === currentUser.displayName || r.user_name === currentUser.email);
+  }, [reviewsList, currentUser]);
+
+  const userTicketsList = useMemo(() => {
+    return ticketsList.filter((t) => t.user_id === currentUser.uid || t.user_email === currentUser.email);
+  }, [ticketsList, currentUser]);
+
   // Filtered Reviews
   const filteredReviews = useMemo(() => {
-    if (reviewFilter === 'all') return reviewsList;
-    return reviewsList.filter((r) => r.status === reviewFilter);
-  }, [reviewsList, reviewFilter]);
+    if (reviewFilter === 'all') return userReviewsList;
+    return userReviewsList.filter((r) => r.status === reviewFilter);
+  }, [userReviewsList, reviewFilter]);
 
   // Filtered Registered Events
   const registeredEvents = useMemo(() => {
-    const list = MOCK_EVENTS.filter((e) => ['ev-tour-1', 'ev-tour-2', 'ev-game-1'].includes(e.id));
+    const list: any[] = [];
     if (eventsFilter === 'all') return list;
     return list.filter((e) => e.sub_category === eventsFilter);
   }, [eventsFilter]);
@@ -311,6 +324,13 @@ export function ProfileClient() {
     if (accountStatusFilter === 'all') return list;
     return list.filter((a) => a.status === accountStatusFilter);
   }, [currentUser.accountsPurchased, accountStatusFilter]);
+
+  // Dynamic Dashboard Metrics
+  const userAccountsList = currentUser.accountsPurchased || [];
+  const totalCapitalManagedVal = userAccountsList.reduce((acc, a) => acc + (a.account_size || 0), 0);
+  const passedEvaluationsList = userAccountsList.filter((a) => a.status === 'passed' || a.status === 'funded' || a.status === 'scaling');
+  const activeFirmsSet = new Set(userAccountsList.map((a) => a.firm_id));
+  const successRatioVal = userAccountsList.length > 0 ? Math.round((passedEvaluationsList.length / userAccountsList.length) * 100) : 0;
 
   // Referral Calculations & Handlers
   const effectiveReferralsCount = liveRegistrations;
@@ -610,7 +630,7 @@ export function ProfileClient() {
             }`}
           >
             <Star className="w-3.5 h-3.5" />
-            <span>2. Reviews ({reviewsList.length})</span>
+            <span>2. Reviews ({userReviewsList.length})</span>
           </button>
 
           <button
@@ -636,7 +656,7 @@ export function ProfileClient() {
             }`}
           >
             <Ticket className="w-3.5 h-3.5" />
-            <span>4. Contact Support ({ticketsList.length})</span>
+            <span>4. Contact Support ({userTicketsList.length})</span>
           </button>
 
           <button
@@ -673,25 +693,29 @@ export function ProfileClient() {
               <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
                 <span className="text-xs text-muted-foreground font-semibold">Total Capital Managed</span>
                 <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                  $475,000
+                  {totalCapitalManagedVal > 0 ? `$${totalCapitalManagedVal.toLocaleString()}` : '$0'}
                 </div>
-                <span className="text-[11px] text-muted-foreground font-medium">Across 5 Active Firms</span>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {activeFirmsSet.size > 0 ? `Across ${activeFirmsSet.size} Active Firm${activeFirmsSet.size > 1 ? 's' : ''}` : '0 Active Accounts'}
+                </span>
               </div>
 
               <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
                 <span className="text-xs text-muted-foreground font-semibold">Passed Evaluations</span>
                 <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                  3 Passed
+                  {passedEvaluationsList.length} Passed
                 </div>
-                <span className="text-[11px] text-muted-foreground font-medium">60% Success Ratio</span>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {userAccountsList.length > 0 ? `${successRatioVal}% Success Ratio` : 'No active evaluations'}
+                </span>
               </div>
 
               <div className="p-5 rounded-3xl bg-white/60 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-xs space-y-1">
                 <span className="text-xs text-muted-foreground font-semibold">Total Payouts Received</span>
                 <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                  $28,450
+                  $0
                 </div>
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">100% On-Chain Verified</span>
+                <span className="text-[11px] text-muted-foreground font-medium">0 Verified Payouts</span>
               </div>
             </div>
 
