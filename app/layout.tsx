@@ -9,6 +9,9 @@ import { BrandingSync } from '@/components/branding-sync';
 export const metadata: Metadata = {
   title: 'EMPIRIAL | Prop Trading Intelligence & Evaluation Platform',
   description: 'Compare prop trading firms, evaluate rules, telemetry spreads, and find verified payout proof.',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

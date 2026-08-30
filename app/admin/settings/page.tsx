@@ -27,6 +27,23 @@ export default function AdminSettingsPage() {
   const [seeding, setSeeding] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState(false);
 
+  // Stats block states
+  const [stat1Value, setStat1Value] = useState(50);
+  const [stat1Suffix, setStat1Suffix] = useState('K+');
+  const [stat1Label, setStat1Label] = useState('Active Traders');
+
+  const [stat2Value, setStat2Value] = useState(40);
+  const [stat2Suffix, setStat2Suffix] = useState('+');
+  const [stat2Label, setStat2Label] = useState('Listed Firms');
+
+  const [stat3Value, setStat3Value] = useState(12);
+  const [stat3Suffix, setStat3Suffix] = useState('K+');
+  const [stat3Label, setStat3Label] = useState('Community Reviews');
+
+  const [stat4Value, setStat4Value] = useState(150);
+  const [stat4Suffix, setStat4Suffix] = useState('+');
+  const [stat4Label, setStat4Label] = useState('Active Challenges');
+
   useEffect(() => {
     async function loadSettings() {
       try {
@@ -45,6 +62,24 @@ export default function AdminSettingsPage() {
           setFavicon(settings.faviconUrl || '/favicon.ico');
           setMaintenance(settings.maintenanceMode ?? false);
           setEventPopup(settings.eventPopupEnabled ?? true);
+
+          if (settings.stats && settings.stats.length >= 4) {
+            setStat1Value(settings.stats[0].value);
+            setStat1Suffix(settings.stats[0].suffix);
+            setStat1Label(settings.stats[0].label);
+
+            setStat2Value(settings.stats[1].value);
+            setStat2Suffix(settings.stats[1].suffix);
+            setStat2Label(settings.stats[1].label);
+
+            setStat3Value(settings.stats[2].value);
+            setStat3Suffix(settings.stats[2].suffix);
+            setStat3Label(settings.stats[2].label);
+
+            setStat4Value(settings.stats[3].value);
+            setStat4Suffix(settings.stats[3].suffix);
+            setStat4Label(settings.stats[3].label);
+          }
         }
       } catch (err) {
         console.error('Failed to load site settings:', err);
@@ -95,7 +130,13 @@ export default function AdminSettingsPage() {
           copyrightText
         },
         maintenanceMode: maintenance,
-        eventPopupEnabled: eventPopup
+        eventPopupEnabled: eventPopup,
+        stats: [
+          { value: Number(stat1Value), suffix: stat1Suffix, label: stat1Label },
+          { value: Number(stat2Value), suffix: stat2Suffix, label: stat2Label },
+          { value: Number(stat3Value), suffix: stat3Suffix, label: stat3Label },
+          { value: Number(stat4Value), suffix: stat4Suffix, label: stat4Label }
+        ]
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -286,6 +327,152 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setDiscordUrl(e.target.value)}
                 className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-white"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Homepage Statistics Block */}
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/5 pb-2">
+            <Globe className="w-4 h-4 text-cyan-400" />
+            <span>Homepage Statistics Block</span>
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-5 text-xs">
+            {/* Stat 1 */}
+            <div className="p-4 rounded-xl bg-elevation-base border border-white/10 space-y-3">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Active Traders (Stat #1)</span>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Value (Number)</label>
+                <input
+                  type="number"
+                  value={stat1Value}
+                  onChange={(e) => setStat1Value(Number(e.target.value))}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Suffix (e.g. K+, +)</label>
+                <input
+                  type="text"
+                  value={stat1Suffix}
+                  onChange={(e) => setStat1Suffix(e.target.value)}
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Label (Description)</label>
+                <input
+                  type="text"
+                  value={stat1Label}
+                  onChange={(e) => setStat1Label(e.target.value)}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
+                />
+              </div>
+            </div>
+
+            {/* Stat 2 */}
+            <div className="p-4 rounded-xl bg-elevation-base border border-white/10 space-y-3">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Listed Firms (Stat #2)</span>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Value (Number)</label>
+                <input
+                  type="number"
+                  value={stat2Value}
+                  onChange={(e) => setStat2Value(Number(e.target.value))}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Suffix (e.g. +, %)</label>
+                <input
+                  type="text"
+                  value={stat2Suffix}
+                  onChange={(e) => setStat2Suffix(e.target.value)}
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Label (Description)</label>
+                <input
+                  type="text"
+                  value={stat2Label}
+                  onChange={(e) => setStat2Label(e.target.value)}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
+                />
+              </div>
+            </div>
+
+            {/* Stat 3 */}
+            <div className="p-4 rounded-xl bg-elevation-base border border-white/10 space-y-3">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Community Reviews (Stat #3)</span>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Value (Number)</label>
+                <input
+                  type="number"
+                  value={stat3Value}
+                  onChange={(e) => setStat3Value(Number(e.target.value))}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Suffix (e.g. K+, +)</label>
+                <input
+                  type="text"
+                  value={stat3Suffix}
+                  onChange={(e) => setStat3Suffix(e.target.value)}
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Label (Description)</label>
+                <input
+                  type="text"
+                  value={stat3Label}
+                  onChange={(e) => setStat3Label(e.target.value)}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
+                />
+              </div>
+            </div>
+
+            {/* Stat 4 */}
+            <div className="p-4 rounded-xl bg-elevation-base border border-white/10 space-y-3">
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Active Challenges (Stat #4)</span>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Value (Number)</label>
+                <input
+                  type="number"
+                  value={stat4Value}
+                  onChange={(e) => setStat4Value(Number(e.target.value))}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Suffix (e.g. +, %)</label>
+                <input
+                  type="text"
+                  value={stat4Suffix}
+                  onChange={(e) => setStat4Suffix(e.target.value)}
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-slate-400 font-medium">Label (Description)</label>
+                <input
+                  type="text"
+                  value={stat4Label}
+                  onChange={(e) => setStat4Label(e.target.value)}
+                  required
+                  className="bg-elevation-surface border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
+                />
+              </div>
             </div>
           </div>
         </div>
