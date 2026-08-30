@@ -1,68 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if user is an active admin
-    function isAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.is_active == true;
-    }
-
-    // General fallback: only admins can write, anyone can read static data
     match /{document=**} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Admins collection
-    match /admins/{adminId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Users collection
-    match /users/{userId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      // Allow updates to own profile, admin updates, or specific referrer point increments from signups
-      allow update: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        isAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'referral_points', 'referrals_count', 'updated_at'])
-      );
-      allow delete: if isAdmin();
-
-      // Referrals subcollection
-      // Allows the referrer (userId) OR the referred user (refId) to record the referral link conversion
-      match /referrals/{refId} {
-        allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == refId || isAdmin());
-        allow write: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == refId || isAdmin());
-      }
-      
-      // Purchased accounts subcollection
-      match /purchasedAccounts/{accId} {
-        allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-        allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      }
-
-      // Redeemed rewards subcollection
-      match /redeemedRewards/{redId} {
-        allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-        allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      }
-    }
-
-    // Referral Visitors collection (Anonymous tracking)
-    match /referralVisitors/{visitorId} {
-      allow read: if true;
-      allow create: if request.resource.data.visitorId == visitorId && request.resource.data.status == 'anonymous';
-      allow update: if (request.resource.data.status == 'registered' && request.resource.data.registeredUserId == request.auth.uid) || isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
   }
 }

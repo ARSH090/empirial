@@ -716,7 +716,7 @@ export function FirmsClient() {
                                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                                   )}
                                 </div>
-                                <span className="text-[11px] text-muted-foreground">{firm.category.toUpperCase()}</span>
+                                <span className="text-[11px] text-muted-foreground">{(firm.category || '').toUpperCase()}</span>
                               </div>
                             </div>
 
