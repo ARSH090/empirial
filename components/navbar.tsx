@@ -50,16 +50,16 @@ export default function NavBar() {
         uid: mockUid,
         displayName: mockUsername,
         email: mockEmail,
-        phoneNumber: "+1 (555) 812-9901",
+        phoneNumber: "",
         role: "trader",
         traderId: `EMP-${mockUid.substring(8, 13).toUpperCase()}`,
         referral_code: `EMP-${mockUid.substring(8, 13).toUpperCase()}`,
         avatarUrl: mockAvatar,
-        points: 2500,
+        points: 0,
         accountsPurchased: [],
         country: "Global",
         discordHandle: `@${mockUsername.toLowerCase().replace(/\s+/g, "_")}`,
-        bio: "Connected via Local Discord Sandbox. Community member on EMPIRIAL 2.0.",
+        bio: "",
       };
       saveUser(userProfile);
       setCurrentUser(userProfile);
@@ -82,15 +82,15 @@ export default function NavBar() {
             uid: user.uid,
             displayName: user.displayName || "Discord Trader",
             email: user.email || "trader@discord.gg",
-            phoneNumber: "+1 (555) 812-9901",
+            phoneNumber: "",
             role: "trader",
             traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
             avatarUrl: user.photoURL || undefined,
-            points: 2500,
+            points: 0,
             accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
             country: "Global",
             discordHandle: user.displayName ? `@${user.displayName.toLowerCase().replace(/\s+/g, "_")}` : undefined,
-            bio: "Connected via Discord. Community member and trader on EMPIRIAL 2.0.",
+            bio: "",
           };
           saveUser(userProfile);
           setCurrentUser(userProfile);

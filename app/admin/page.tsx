@@ -6,46 +6,40 @@ import {
   Building2,
   Trophy,
   Tag,
-  DollarSign,
   Star,
-  TrendingUp,
+  MessageSquare,
 } from 'lucide-react';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
-import { MOCK_PAYOUTS } from '@/lib/data/payouts-data';
 import { MOCK_REVIEWS } from '@/lib/data/reviews-data';
-import { getFirms, getChallenges, getDeals, getPayouts, getReviews } from '@/lib/firebase/services';
+import { getFirms, getChallenges, getDeals, getReviews } from '@/lib/firebase/services';
 
 export default function AdminOverviewPage() {
   const [firms, setFirms] = useState<any[]>([]);
   const [challenges, setChallenges] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
-  const [payouts, setPayouts] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const [firmsData, challData, dealData, payData, revData] = await Promise.all([
+        const [firmsData, challData, dealData, revData] = await Promise.all([
           getFirms(),
           getChallenges(),
           getDeals(),
-          getPayouts(),
           getReviews()
         ]);
         setFirms(firmsData.length > 0 ? firmsData : MOCK_FIRMS);
         setChallenges(challData.length > 0 ? challData : MOCK_CHALLENGES);
         setDeals(dealData.length > 0 ? dealData : MOCK_DEALS);
-        setPayouts(payData.length > 0 ? payData : MOCK_PAYOUTS);
         setReviews(revData.length > 0 ? revData : MOCK_REVIEWS);
       } catch (err) {
         console.error('Failed to load admin overview metrics:', err);
         setFirms(MOCK_FIRMS);
         setChallenges(MOCK_CHALLENGES);
         setDeals(MOCK_DEALS);
-        setPayouts(MOCK_PAYOUTS);
         setReviews(MOCK_REVIEWS);
       } finally {
         setLoading(false);
@@ -53,9 +47,6 @@ export default function AdminOverviewPage() {
     }
     loadStats();
   }, []);
-
-  const totalPayoutsSum = payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const formattedPayoutsTotal = totalPayoutsSum > 0 ? `$${(totalPayoutsSum / 1000000).toFixed(1)}M` : '$15.2M';
 
   if (loading) {
     return (
@@ -70,9 +61,7 @@ export default function AdminOverviewPage() {
     { title: 'Prop Firms', count: firms.length, href: '/admin/firms', icon: Building2, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
     { title: 'Challenges Audited', count: challenges.length, href: '/admin/challenges', icon: Trophy, color: 'text-purple-400', bg: 'bg-purple-500/10' },
     { title: 'Active Coupons', count: deals.length, href: '/admin/deals', icon: Tag, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-    { title: 'Payout Proofs', count: payouts.length, href: '/admin/payouts', icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     { title: 'Trader Reviews', count: reviews.length, href: '/admin/reviews', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-    { title: 'Audited Payouts Total', count: formattedPayoutsTotal, href: '/admin/payouts', icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
   ];
 
   return (
@@ -88,7 +77,7 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -134,22 +123,22 @@ export default function AdminOverviewPage() {
           </div>
         </div>
 
-        {/* Module 2: Payout Proofs Queue */}
+        {/* Module 2: Trader Reviews Moderation */}
         <div className="bg-elevation-surface border border-white/10 rounded-3xl p-6 space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-emerald-400" />
-              <span>Pending Payout Proofs Queue</span>
+              <Star className="w-4 h-4 text-yellow-400" />
+              <span>Recent Trader Reviews</span>
             </h2>
-            <Link href="/admin/payouts" className="text-xs font-bold text-purple-400 hover:text-purple-300">
+            <Link href="/admin/reviews" className="text-xs font-bold text-purple-400 hover:text-purple-300">
               Moderation Queue →
             </Link>
           </div>
           <div className="space-y-2">
-            {payouts.slice(0, 4).map(p => (
-              <div key={p.id} className="flex justify-between items-center p-3 rounded-xl bg-elevation-card border border-white/5 text-xs">
-                <span className="text-white font-semibold">{p.trader_display_name} ({p.firm_name})</span>
-                <span className="font-mono font-bold text-emerald-400">${p.amount.toLocaleString()}</span>
+            {reviews.slice(0, 4).map(r => (
+              <div key={r.id} className="flex justify-between items-center p-3 rounded-xl bg-elevation-card border border-white/5 text-xs">
+                <span className="text-white font-semibold">{r.user_name} ({r.firm_name})</span>
+                <span className="font-mono font-bold text-amber-400">{r.overall_rating} ★</span>
               </div>
             ))}
           </div>

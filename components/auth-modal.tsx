@@ -64,16 +64,16 @@ export function AuthModal() {
         uid: user.uid,
         displayName: user.displayName || 'Google Trader',
         email: user.email || '',
-        phoneNumber: user.phoneNumber || '+1 (555) 389-2049',
+        phoneNumber: user.phoneNumber || '',
         role: 'trader',
         traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
         referral_code: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
         avatarUrl: user.photoURL || undefined,
-        points: mode === 'signup' ? 3000 : 2500,
+        points: 0,
         accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
         country: 'Global',
         discordHandle: user.displayName ? `@${user.displayName.toLowerCase().replace(/\s+/g, '_')}` : undefined,
-        bio: 'Connected via Google Account. Trader on EMPIRIAL 2.0.',
+        bio: '',
         ...(referredBy ? { referredBy, referralCodeUsed } : {})
       };
       saveUser(userProfile);
@@ -147,16 +147,16 @@ export function AuthModal() {
           uid: user.uid,
           displayName,
           email: customEmail.trim(),
-          phoneNumber: customPhone.trim() || '+1 (555) 019-2834',
+          phoneNumber: customPhone.trim() || '',
           role: 'trader',
           traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
           referral_code: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
           avatarUrl: undefined,
-          points: 3000,
+          points: 0,
           accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
           country: 'Global',
           discordHandle: `@${displayName.toLowerCase().replace(/\s+/g, '_')}`,
-          bio: 'New registered trader on EMPIRIAL 2.0.',
+          bio: '',
           ...(referredBy ? { referredBy, referralCodeUsed } : {})
         };
         saveUser(userProfile);
@@ -168,15 +168,15 @@ export function AuthModal() {
           uid: user.uid,
           displayName: user.displayName || customEmail.split('@')[0],
           email: user.email || customEmail.trim(),
-          phoneNumber: '+1 (555) 019-2834',
+          phoneNumber: '',
           role: 'trader',
           traderId: `EMP-${user.uid.substring(0, 5).toUpperCase()}`,
           avatarUrl: user.photoURL || undefined,
-          points: 2500,
+          points: 0,
           accountsPurchased: DEFAULT_PURCHASED_ACCOUNTS,
           country: 'Global',
           discordHandle: user.displayName ? `@${user.displayName.toLowerCase().replace(/\s+/g, '_')}` : undefined,
-          bio: 'Trader on EMPIRIAL 2.0.',
+          bio: '',
         };
         saveUser(userProfile);
       }

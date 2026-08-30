@@ -165,9 +165,9 @@ export function ProfileClient() {
     const user = getStoredUser() || DEMO_TRADER;
     setCurrentUser(user);
     setEditName(user.displayName);
-    setEditPhone(user.phoneNumber || '+1 (555) 389-2049');
-    setEditDiscord(user.discordHandle || '@anuraj_trader');
-    setEditCountry(user.country || 'India');
+    setEditPhone(user.phoneNumber || '');
+    setEditDiscord(user.discordHandle || '');
+    setEditCountry(user.country || '');
 
     setReviewsList(getStoredUserReviews());
     setTicketsList(getStoredSupportTickets());

@@ -16,6 +16,7 @@ import {
   ExternalLink,
   ArrowRight,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { RatingBadge } from '@/components/ui/rating-badge';
 import { CopyButton } from '@/components/ui/copy-button';
 import { ProfitSplitGauge } from '@/components/ui/profit-split-gauge';
@@ -37,7 +38,7 @@ export function FirmProfileClient({
   firmReviews,
   firmPayouts,
 }: FirmProfileClientProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'challenges' | 'offers' | 'reviews' | 'payouts'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'challenges' | 'offers' | 'reviews'>('overview');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -88,26 +89,32 @@ export function FirmProfileClient({
             >
               Compare Specs
             </Link>
+            <Button asChild size="lg" className="rounded-xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black">
+              <Link href={firm.buy_url || '#'} target="_blank" rel="noopener noreferrer">
+                <span>Visit Official Site</span>
+                <ExternalLink className="ml-2 w-4 h-4" />
+              </Link>
+            </Button>
           </div>
         </div>
 
-        {/* Highlight Stats Ribbon */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-white/5 text-center">
+        {/* Quick Highlights Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
+          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold">HQ Location</span>
+            <div className="text-sm font-bold text-white mt-0.5">{firm.headquarters || firm.country || 'Global'}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold">Founded</span>
+            <div className="text-sm font-bold text-white mt-0.5">{firm.founded_year || '2022'}</div>
+          </div>
           <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
             <span className="text-[10px] text-slate-400 uppercase font-semibold">Max Allocation</span>
-            <div className="text-base font-bold text-white font-mono mt-0.5">{firm.max_allocation}</div>
+            <div className="text-base font-bold text-cyan-400 font-mono mt-0.5">{firm.max_allocation}</div>
           </div>
           <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
             <span className="text-[10px] text-slate-400 uppercase font-semibold">Profit Split</span>
             <div className="text-base font-bold text-emerald-400 font-mono mt-0.5">{firm.profit_split_custom}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Payout Schedule</span>
-            <div className="text-base font-bold text-slate-200 mt-0.5">{firm.payout_custom}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Trader Rating</span>
-            <div className="text-base font-bold text-amber-400 font-mono mt-0.5">{firm.rating} / 5.0 ★</div>
           </div>
         </div>
       </div>
@@ -119,7 +126,6 @@ export function FirmProfileClient({
           { id: 'challenges', label: `Challenges (${firmChallenges.length})` },
           { id: 'offers', label: `Promo Deals (${firmDeals.length})` },
           { id: 'reviews', label: `Reviews & Ratings (${firmReviews.length})` },
-          { id: 'payouts', label: `Payout Proofs (${firmPayouts.length})` },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -319,22 +325,6 @@ export function FirmProfileClient({
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Tab Content 5: Payouts */}
-      {activeTab === 'payouts' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {firmPayouts.map((pay) => (
-            <div key={pay.id} className="bg-elevation-surface border border-white/10 rounded-2xl p-5 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-emerald-400 font-mono">${pay.amount.toLocaleString()}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-slate-300 font-mono">{pay.payout_date}</span>
-              </div>
-              <div className="text-xs font-bold text-white">{pay.trader_display_name}</div>
-              <p className="text-[11px] text-slate-400">{pay.concept} • {pay.account_size} Account • {pay.payout_method}</p>
-            </div>
-          ))}
         </div>
       )}
     </div>

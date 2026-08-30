@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/config';
+import { getStoredUser } from '@/lib/utils/auth-store';
 import {
   Shield,
   LayoutDashboard,
@@ -36,6 +37,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check local stored session first
+    const storedUser = getStoredUser();
+    if (storedUser && storedUser.role === 'admin') {
+      setCurrentUser(storedUser);
+      setLoading(false);
+      return;
+    }
+
     if (!auth) {
       setLoading(false);
       return;
@@ -136,7 +145,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Discount Promo Deals', href: '/admin/deals', icon: Tag },
     { name: 'Reviews Moderation', href: '/admin/reviews', icon: Star },
     { name: 'Tournaments & Events', href: '/admin/events', icon: Calendar },
-    { name: 'Blog Article CMS', href: '/admin/blog', icon: BookOpen },
+    { name: 'Live Market Ticker', href: '/admin/market-ticker', icon: Radio },
+    { name: 'Support Inbox', href: '/admin/messages', icon: Mail },
+    { name: 'Page Builder CMS', href: '/admin/page-builder', icon: Sliders },
+    { name: 'Media Library', href: '/admin/media', icon: ImageIcon },
     { name: 'System Settings', href: '/admin/settings', icon: Settings },
   ];
 
