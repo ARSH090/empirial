@@ -402,19 +402,31 @@ export function DealsClient() {
                             </div>
 
                             {/* Prominent Authentic Logo */}
-                            <div className="my-4 flex items-center justify-center h-16 sm:h-20 w-full">
-                              {deal.firm_logo ? (
-                                <img
-                                  src={deal.firm_logo}
-                                  alt={deal.firm_name}
-                                  className="h-14 sm:h-16 w-auto max-w-[170px] sm:max-w-[200px] object-contain rounded-md transition-transform duration-200 hover:scale-105"
-                                />
-                              ) : (
-                                <div className="h-14 w-28 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-extrabold text-foreground text-sm">
-                                  {deal.firm_name.substring(0, 4)}
+                            {(() => {
+                              const firmLogoSrc = deal.firm_logo || (
+                                deal.firm_id === 'nys' || deal.firm_slug === 'nys-capital' ? '/logos/nys.png' :
+                                deal.firm_id === 'ck-capital' || deal.firm_slug === 'ck-capital' ? '/logos/ck-capital.avif' :
+                                deal.firm_id === 'alpha-capital' || deal.firm_slug === 'alpha-capital' ? '/logos/alpha-capital.png' :
+                                deal.firm_id === 'ftmo' || deal.firm_slug === 'ftmo' ? '/logos/ftmo.svg' :
+                                deal.firm_id === 'funding-pips' || deal.firm_slug === 'funding-pips' ? '/logos/funding-pips.svg' : undefined
+                              );
+
+                              return (
+                                <div className="my-4 flex items-center justify-center h-16 sm:h-20 w-full">
+                                  {firmLogoSrc ? (
+                                    <img
+                                      src={firmLogoSrc}
+                                      alt={deal.firm_name}
+                                      className="h-14 sm:h-16 w-auto max-w-[170px] sm:max-w-[200px] object-contain rounded-md transition-transform duration-200 hover:scale-105"
+                                    />
+                                  ) : (
+                                    <div className="h-14 w-28 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-extrabold text-foreground text-sm">
+                                      {deal.firm_name.substring(0, 4)}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Dividing Line */}

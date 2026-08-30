@@ -31,82 +31,82 @@ export default function Testimonials() {
   const DEFAULT_TESTIMONIALS = [
     {
       name: "Sarah Chen",
-      role: "CEO at TechStart",
+      role: "Funded Forex Trader",
       avatar: "https://i.pravatar.cc/150?img=1",
       content:
-        "This platform has transformed how we manage our business. The analytics features alone have saved us countless hours and improved our decision-making process significantly.",
+        "Empirial made finding the perfect prop firm challenge effortless. The side-by-side comparison of drawdown rules, payout splits, and spread telemetry saved me weeks of manual research.",
       rating: 5,
     },
     {
       name: "Marcus Rodriguez",
-      role: "Product Manager at Scale Co",
+      role: "Futures & Algo Trader",
       avatar: "https://i.pravatar.cc/150?img=3",
       content:
-        "The integration capabilities are outstanding. We were able to connect all our existing tools seamlessly. The customer support team is also incredibly responsive and helpful.",
+        "The multi-firm rating system and community feedback on Empirial are unmatched. I filtered firms by instant funding, no-time-limit challenges, and verified payout proofs before committing capital.",
       rating: 5,
     },
     {
       name: "Emma Thompson",
-      role: "CTO at DataFlow",
+      role: "Prop Portfolio Manager",
       avatar: "https://i.pravatar.cc/150?img=5",
       content:
-        "Security was our main concern when choosing a platform, and this solution exceeded our expectations. The encryption and compliance features give us complete peace of mind.",
+        "Empirial's evaluation breakdown tool helped me discover prop firms offering 90%+ profit splits and zero news trading restrictions. The community giveaway events and promo discounts are awesome!",
       rating: 5,
     },
     {
       name: "Robert Taylor",
-      role: "CTO at FinanceFlow",
+      role: "Macro & Swing Trader",
       avatar: "https://i.pravatar.cc/150?img=15",
       content:
-        "Security and compliance are critical in our industry. This platform not only meets but exceeds all our regulatory requirements.",
+        "Comparing evaluation rules across top prop firms side-by-side on Empirial completely transformed my strategy. I found a firm that matches my exact risk profile with static drawdown limits.",
       rating: 5,
     },
     {
       name: "Maria Garcia",
-      role: "Director of Operations at StreamlineOps",
+      role: "Day Trader & Active Member",
       avatar: "https://i.pravatar.cc/150?img=17",
       content:
-        "The customer support is phenomenal. Every question gets answered quickly and thoroughly. It's like having an extended team member.",
+        "Empirial is hands down the best platform for prop traders. The transparent firm ratings, prompt support, and community discussions helped me avoid hidden rules and get funded on my first try.",
       rating: 5,
     },
     {
       name: "Kevin Lee",
-      role: "Founder at NextGen Solutions",
+      role: "Scalper & Crypto Trader",
       avatar: "https://i.pravatar.cc/150?img=19",
       content:
-        "We've tried many platforms, but this one stands out for its reliability and performance. Zero downtime in 18 months of usage.",
+        "I use Empirial to track spread telemetry and compare firm rules across multiple prop accounts. Having real trader ratings and multi-firm comparisons in one place gives me complete confidence.",
       rating: 5,
     },
     {
       name: "Sophie Anderson",
-      role: "Product Lead at InnovateLab",
+      role: "Quantitative Trader",
       avatar: "https://i.pravatar.cc/150?img=21",
       content:
-        "The analytics dashboard gives us insights we never had before. Data-driven decisions have become our competitive advantage.",
+        "The challenge filter on Empirial allowed me to sort prop firms by 1-step vs. 2-step evaluation rules, scaling plans, and payout speed. It's the ultimate resource for serious funded traders.",
       rating: 5,
     },
     {
       name: "James Wilson",
-      role: "Engineering Manager at TechBridge",
+      role: "Funded Commodity Trader",
       avatar: "https://i.pravatar.cc/150?img=23",
       content:
-        "Migration was seamless and the onboarding process was exceptional. Our team was productive from day one.",
+        "Empirial's trading community and verified firm reviews made it easy to compare multi-firm options. Finding exclusive discount codes and event giveaways right on the platform is incredible.",
       rating: 5,
     },
     {
       name: "Elena Petrov",
-      role: "CEO at GrowthMetrics",
+      role: "Forex Risk Manager",
       avatar: "https://i.pravatar.cc/150?img=25",
       content:
-        "The platform scales beautifully with our business. From startup to enterprise, it has grown with us every step of the way.",
+        "Navigating prop firm evaluation rules used to be overwhelming. Empirial breaks down every parameter—from daily drawdown to profit targets—making it simple to choose the best challenge.",
       rating: 5,
     },
     {
       name: "Michael Chang",
-      role: "Head of Product at DataDriven",
+      role: "Multi-Account Funded Trader",
       avatar: "https://i.pravatar.cc/150?img=27",
       content:
-        "Real-time collaboration features have transformed how our remote team works together. Productivity has increased dramatically.",
+        "Thanks to Empirial's multi-firm comparative tools, I built a diversified portfolio of funded accounts across three top-tier firms. The community insights and unbiased ratings are invaluable.",
       rating: 5,
     },
   ];

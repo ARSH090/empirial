@@ -49,28 +49,28 @@ export const TESTIMONIALS: Testimonial[] = [
     id: 't-1',
     initials: 'SC',
     name: 'Sarah Chen',
-    role: 'Funded Trader',
-    company: 'NYS Capital',
+    role: 'Funded Forex Trader',
+    company: 'Empirial Community',
     stars: 5,
-    text: 'EMPIRIAL has completely changed how I pick prop challenges. The trailing vs. static drawdown tracker is a lifesaver.'
+    text: 'Empirial made finding the perfect prop firm challenge effortless. The side-by-side comparison of drawdown rules, payout splits, and spread telemetry saved me weeks of manual research.'
   },
   {
     id: 't-2',
     initials: 'MR',
     name: 'Marcus Rodriguez',
-    role: 'Risk Analyst',
-    company: 'CK Capital',
+    role: 'Futures & Algo Trader',
+    company: 'Empirial Community',
     stars: 5,
-    text: 'The telemetry spreads data is incredibly accurate. I was able to verify cTrader commission spreads before buying my stellar combine.'
+    text: 'The multi-firm rating system and community feedback on Empirial are unmatched. I filtered firms by instant funding, no-time-limit challenges, and verified payout proofs before committing capital.'
   },
   {
     id: 't-3',
     initials: 'ET',
     name: 'Emma Thompson',
-    role: 'Funded Portfolio Manager',
-    company: 'FTMO',
+    role: 'Prop Portfolio Manager',
+    company: 'Empirial Community',
     stars: 5,
-    text: 'Audited payout logs gave me absolute trust to choose FTMO and Funding Pips for my multi-account allocation setup.'
+    text: 'Empirial\'s evaluation breakdown tool helped me discover prop firms offering 90%+ profit splits and zero news trading restrictions. The community giveaway events and promo discounts are awesome!'
   }
 ];
 

@@ -172,7 +172,22 @@ export default function CategoryLandingPage() {
             {filteredDeals.map((deal) => (
               <div key={deal.id} className="bg-elevation-surface border border-white/10 rounded-2xl p-6 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-cyan-400">{deal.firm_name}</span>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const firmLogoSrc = deal.firm_logo || (
+                        deal.firm_id === 'nys' || deal.firm_slug === 'nys-capital' ? '/logos/nys.png' :
+                        deal.firm_id === 'ck-capital' || deal.firm_slug === 'ck-capital' ? '/logos/ck-capital.avif' :
+                        deal.firm_id === 'alpha-capital' || deal.firm_slug === 'alpha-capital' ? '/logos/alpha-capital.png' :
+                        deal.firm_id === 'ftmo' || deal.firm_slug === 'ftmo' ? '/logos/ftmo.svg' :
+                        deal.firm_id === 'funding-pips' || deal.firm_slug === 'funding-pips' ? '/logos/funding-pips.svg' : undefined
+                      );
+                      return firmLogoSrc ? (
+                        <img src={firmLogoSrc} alt={deal.firm_name} className="h-6 w-auto max-w-[90px] object-contain rounded" />
+                      ) : (
+                        <span className="text-xs font-bold text-foreground">{deal.firm_name}</span>
+                      );
+                    })()}
+                  </div>
                   <span className="text-xs font-bold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/30">
                     -{deal.discount_pct}% OFF
                   </span>
