@@ -7,32 +7,45 @@ import { motion } from "framer-motion";
 
 export default function Stats() {
   const [animate, setAnimate] = useState(false);
-  const [stats, setStats] = useState([
+  const DEFAULT_STATS = [
     { value: 50, suffix: "K+", label: "Active Traders" },
-    { value: 40, suffix: "+", label: "Listed Firms" },
-    { value: 12, suffix: "K+", label: "Community Reviews" },
-    { value: 150, suffix: "+", label: "Active Challenges" },
-  ]);
+    { value: 40, suffix: "+", label: "Verified Firms" },
+    { value: 150, suffix: "+", label: "Challenges" },
+    { value: 12, suffix: "K+", label: "Reviews" },
+  ];
+
+  const [stats, setStats] = useState(DEFAULT_STATS);
 
   useEffect(() => {
     async function loadStats() {
       try {
         const settings = await getSiteSettings();
-        if (settings && settings.stats && settings.stats.length > 0) {
-          setStats(settings.stats);
+        if (settings && settings.stats && settings.stats.length >= 4) {
+          // Verify that Firestore stats match required labels or use DEFAULT_STATS
+          const hasRequiredLabels = settings.stats.some(
+            (s: any) => s.label === "Verified Firms" || s.label === "Challenges"
+          );
+          if (hasRequiredLabels) {
+            setStats(settings.stats);
+          } else {
+            setStats(DEFAULT_STATS);
+          }
+        } else {
+          setStats(DEFAULT_STATS);
         }
       } catch (err) {
         console.error('Failed to load stats from Firestore:', err);
+        setStats(DEFAULT_STATS);
       }
     }
     loadStats();
   }, []);
 
   return (
-    <section className="py-20 px-4 bg-transparent w-full">
+    <section className="py-16 sm:py-20 px-4 bg-transparent w-full">
       <div className="max-w-6xl mx-auto">
         <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-8"
+          className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8"
           onViewportEnter={() => setAnimate(true)}
           viewport={{ once: true, amount: 0.4 }}
         >
@@ -49,7 +62,7 @@ export default function Stats() {
               }}
               className="text-center"
             >
-              <div className="text-3xl md:text-4xl font-bold mb-2">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-1.5">
                 <NumberFlow
                   value={animate ? stat.value : 0}
                   format={{
@@ -58,7 +71,7 @@ export default function Stats() {
                 />
                 {stat.suffix}
               </div>
-              <div className="text-sm text-muted-foreground font-medium">
+              <div className="text-xs sm:text-sm text-muted-foreground font-medium">
                 {stat.label}
               </div>
             </motion.div>

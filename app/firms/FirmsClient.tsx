@@ -52,8 +52,8 @@ const PLATFORM_DATA: Record<string, { name: string; logo: string; type: 'forex' 
 type SortMode = 'all' | 'popular' | 'best-value';
 
 export function FirmsClient() {
-  const [firms, setFirms] = useState<Firm[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [firms, setFirms] = useState<Firm[]>(MOCK_FIRMS);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('all');
@@ -75,7 +75,8 @@ export function FirmsClient() {
     async function loadFirms() {
       try {
         const data = await getFirms();
-        if (data && data.length > 0) {
+        // Only set Firestore data if it has valid complete firm objects with name & category
+        if (data && data.length >= 5 && data.every(f => f.name && f.category)) {
           setFirms(data);
         } else {
           setFirms(MOCK_FIRMS);

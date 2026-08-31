@@ -231,7 +231,7 @@ export function CompareClient() {
       }));
     } else {
       return selectedChallenges.map((ch, idx) => ({
-        firmName: `${ch.firm_name} (${ch.steps === 0 ? 'Instant' : `${ch.steps}-Step`})`,
+        firmName: `${ch.firm_name || ch.name || 'Prop Firm'} (${ch.steps === 0 ? 'Instant' : `${ch.steps || 2}-Step`})`,
         color: SLOT_COLORS[idx % SLOT_COLORS.length],
         metrics: calculateChallengeComparisonScores(ch),
       }));
@@ -241,21 +241,28 @@ export function CompareClient() {
   // Filter available items for addition
   const availableFirms = useMemo(() => {
     const list = dbFirms.length > 0 ? dbFirms : MOCK_FIRMS;
+    const q = (searchQuery || '').toLowerCase().trim();
     return list.filter(
       (f) =>
+        f &&
+        (f.slug || f.id) &&
         !selectedFirmSlugs.includes(f.slug) &&
-        f.name.toLowerCase().includes(searchQuery.toLowerCase())
+        !selectedFirmSlugs.includes(f.id) &&
+        (f.name || '').toLowerCase().includes(q)
     );
   }, [selectedFirmSlugs, searchQuery, dbFirms]);
 
   const availableChallenges = useMemo(() => {
     const list = dbChallenges.length > 0 ? dbChallenges : MOCK_CHALLENGES;
+    const q = (searchQuery || '').toLowerCase().trim();
     return list.filter(
       (ch) =>
+        ch &&
+        ch.id &&
         !selectedChallengeIds.includes(ch.id) &&
-        (ch.firm_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          ch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          `$${ch.account_size}`.includes(searchQuery))
+        ((ch.firm_name || ch.name || '').toLowerCase().includes(q) ||
+          (ch.name || '').toLowerCase().includes(q) ||
+          `$${ch.account_size || ''}`.includes(q))
     );
   }, [selectedChallengeIds, searchQuery, dbChallenges]);
 
@@ -956,5 +963,9 @@ export function CompareClient() {
 }
 
 export default function ComparePage() {
-  return <CompareClient />;
+  return (
+    <React.Suspense fallback={<div className="p-12 text-center text-slate-400">Loading Comparator Terminal...</div>}>
+      <CompareClient />
+    </React.Suspense>
+  );
 }

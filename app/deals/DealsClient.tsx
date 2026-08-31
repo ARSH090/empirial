@@ -38,8 +38,8 @@ import {
 type OfferFilterType = 'all' | 'bogo' | 'cashback' | 'refund' | 'discount';
 
 export function DealsClient() {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [deals, setDeals] = useState<Deal[]>(MOCK_DEALS);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedFirmType, setSelectedFirmType] = useState<string>('all');
   const [selectedOfferType, setSelectedOfferType] = useState<OfferFilterType>('all');
@@ -54,7 +54,7 @@ export function DealsClient() {
     async function loadDeals() {
       try {
         const data = await getDeals();
-        if (data && data.length > 0) {
+        if (data && data.length >= 5 && data.every(d => d.firm_name && d.code)) {
           setDeals(data);
         } else {
           setDeals(MOCK_DEALS);

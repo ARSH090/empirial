@@ -158,47 +158,58 @@ export function ReviewsClient() {
   const firmRows = useMemo(() => {
     const listFirms = firmsList.length > 0 ? firmsList : MOCK_FIRMS;
     return listFirms.map((firm) => {
+      if (!firm) return null;
       // Find all reviews matching firm
       const matchingReviews = reviewsList.filter(
         (r) =>
-          r.firm_id === firm.id ||
-          r.firm_id === firm.slug ||
-          r.firm_name.toLowerCase() === firm.name.toLowerCase() ||
-          r.firm_id === firm.id.replace('-capital', '') ||
-          (firm.slug && r.firm_id === firm.slug.replace('-capital', ''))
+          r &&
+          (r.firm_id === firm.id ||
+            r.firm_id === firm.slug ||
+            (r.firm_name || '').toLowerCase() === (firm.name || '').toLowerCase() ||
+            (firm.id && r.firm_id === firm.id.replace('-capital', '')) ||
+            (firm.slug && r.firm_id === firm.slug.replace('-capital', '')))
       );
 
       // Genuine Ratings calculation from reviews (or anchored to firm metrics)
       const tradingConditions = matchingReviews.length > 0
-        ? matchingReviews.reduce((acc, r) => acc + r.trading_conditions, 0) / matchingReviews.length
-        : Math.min(5, Math.max(4.5, Number((firm.rating + 0.1).toFixed(1))));
+        ? matchingReviews.reduce((acc, r) => acc + (r.trading_conditions || 0), 0) / matchingReviews.length
+        : Math.min(5, Math.max(4.5, Number(((firm.rating || 4.5) + 0.1).toFixed(1))));
 
       const customerCare = matchingReviews.length > 0
-        ? matchingReviews.reduce((acc, r) => acc + r.customer_care, 0) / matchingReviews.length
-        : Math.min(5, Math.max(4.4, Number((firm.rating - 0.1).toFixed(1))));
+        ? matchingReviews.reduce((acc, r) => acc + (r.customer_care || 0), 0) / matchingReviews.length
+        : Math.min(5, Math.max(4.4, Number(((firm.rating || 4.5) - 0.1).toFixed(1))));
 
       const payoutProcess = matchingReviews.length > 0
-        ? matchingReviews.reduce((acc, r) => acc + r.payout_process, 0) / matchingReviews.length
-        : Math.min(5, Math.max(4.6, Number(firm.rating.toFixed(1))));
+        ? matchingReviews.reduce((acc, r) => acc + (r.payout_process || 0), 0) / matchingReviews.length
+        : Math.min(5, Math.max(4.6, Number((firm.rating || 4.5).toFixed(1))));
 
       // Main Rank Score: Exact genuine average of Trading Conditions, Customer Care, and Payout Process
       const overallRank = Number(((tradingConditions + customerCare + payoutProcess) / 3).toFixed(1));
 
       return {
         firm,
-        reviewCount: firm.review_count + (matchingReviews.length > 2 ? matchingReviews.length - 2 : 0),
+        reviewCount: (firm.review_count || 0) + (matchingReviews.length > 2 ? matchingReviews.length - 2 : 0),
         tradingConditions,
         customerCare,
         payoutProcess,
         overallRank,
         reviews: matchingReviews,
       };
-    });
-  }, [reviewsList]);
+    }).filter(Boolean) as Array<{
+      firm: any;
+      reviewCount: number;
+      tradingConditions: number;
+      customerCare: number;
+      payoutProcess: number;
+      overallRank: number;
+      reviews: any[];
+    }>;
+  }, [firmsList, reviewsList]);
 
   // Filtered Firm Rows based on Search & Multi-select pills
   const filteredRows = useMemo(() => {
     return firmRows.filter((row) => {
+      if (!row || !row.firm) return false;
       // 1. Multi-Select Firm Pills Filter
       if (selectedFirmSlugs.length > 0) {
         const matchesFirm =
@@ -211,14 +222,14 @@ export function ReviewsClient() {
       // 2. Search Query Filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const matchesName = row.firm.name.toLowerCase().includes(q);
+        const matchesName = (row.firm.name || '').toLowerCase().includes(q);
         const matchesCategory = row.firm.category?.toLowerCase().includes(q);
         const matchesCountry = row.firm.country?.toLowerCase().includes(q);
         const matchesReviews = row.reviews.some(
           (r) =>
-            r.title.toLowerCase().includes(q) ||
-            r.body.toLowerCase().includes(q) ||
-            r.full_name.toLowerCase().includes(q)
+            (r.title || '').toLowerCase().includes(q) ||
+            (r.body || '').toLowerCase().includes(q) ||
+            (r.full_name || '').toLowerCase().includes(q)
         );
 
         if (!matchesName && !matchesCategory && !matchesCountry && !matchesReviews) {
@@ -332,12 +343,13 @@ export function ReviewsClient() {
                   : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-muted-foreground hover:text-foreground'
               }`}
             >
-              All Prop Firms ({MOCK_FIRMS.length})
+              All Prop Firms ({(firmsList.length > 0 ? firmsList : MOCK_FIRMS).length})
             </button>
 
             {/* Individual Multi-Select Firm Pills */}
-            {MOCK_FIRMS.map((firm) => {
+            {(firmsList.length > 0 ? firmsList : MOCK_FIRMS).map((firm) => {
               const isSelected = selectedFirmSlugs.includes(firm.id) || selectedFirmSlugs.includes(firm.slug);
+              const logoSrc = firm.logo_url || (firm as any).logo || '/logos/nys.png';
               return (
                 <button
                   key={firm.id}
@@ -350,7 +362,7 @@ export function ReviewsClient() {
                   }`}
                 >
                   <img
-                    src={firm.logo_url}
+                    src={logoSrc}
                     alt={firm.name}
                     className="w-3.5 h-3.5 object-contain rounded-xs shrink-0"
                   />
@@ -414,7 +426,7 @@ export function ReviewsClient() {
                             <div className="col-span-3 flex items-center gap-3.5">
                               <div className="shrink-0 w-11 h-11 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center p-1 overflow-hidden shadow-2xs">
                                 <img
-                                  src={firm.logo_url}
+                                  src={firm.logo_url || (firm as any).logo || '/logos/nys.png'}
                                   alt={firm.name}
                                   className="h-8 w-auto max-w-[40px] object-contain rounded-md"
                                 />

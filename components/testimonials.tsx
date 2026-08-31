@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { collection, getDocs } from 'firebase/firestore';
@@ -7,27 +7,7 @@ import { db } from '@/lib/firebase/config';
 export default function Testimonials() {
   const [showAll, setShowAll] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [testimonials, setTestimonials] = useState<any[]>([]);
   const visibleCount = isMobile ? 2 : 6;
-
-  useEffect(() => {
-    async function loadTestimonials() {
-      if (!db) return;
-      try {
-        const snap = await getDocs(collection(db, 'testimonials'));
-        if (!snap.empty) {
-          setTestimonials(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        } else {
-          setTestimonials(DEFAULT_TESTIMONIALS);
-        }
-      } catch (err) {
-        console.error('Failed to load testimonials:', err);
-        setTestimonials(DEFAULT_TESTIMONIALS);
-      }
-    }
-    loadTestimonials();
-  }, []);
-
   const DEFAULT_TESTIMONIALS = [
     {
       name: "Sarah Chen",
@@ -35,14 +15,6 @@ export default function Testimonials() {
       avatar: "https://i.pravatar.cc/150?img=1",
       content:
         "Empirial made finding the perfect prop firm challenge effortless. The side-by-side comparison of drawdown rules, payout splits, and spread telemetry saved me weeks of manual research.",
-      rating: 5,
-    },
-    {
-      name: "Marcus Rodriguez",
-      role: "Futures & Algo Trader",
-      avatar: "https://i.pravatar.cc/150?img=3",
-      content:
-        "The multi-firm rating system and community feedback on Empirial are unmatched. I filtered firms by instant funding, no-time-limit challenges, and verified payout proofs before committing capital.",
       rating: 5,
     },
     {
@@ -54,19 +26,27 @@ export default function Testimonials() {
       rating: 5,
     },
     {
-      name: "Robert Taylor",
-      role: "Macro & Swing Trader",
-      avatar: "https://i.pravatar.cc/150?img=15",
-      content:
-        "Comparing evaluation rules across top prop firms side-by-side on Empirial completely transformed my strategy. I found a firm that matches my exact risk profile with static drawdown limits.",
-      rating: 5,
-    },
-    {
       name: "Maria Garcia",
       role: "Day Trader & Active Member",
       avatar: "https://i.pravatar.cc/150?img=17",
       content:
         "Empirial is hands down the best platform for prop traders. The transparent firm ratings, prompt support, and community discussions helped me avoid hidden rules and get funded on my first try.",
+      rating: 5,
+    },
+    {
+      name: "Marcus Rodriguez",
+      role: "Futures & Algo Trader",
+      avatar: "https://i.pravatar.cc/150?img=3",
+      content:
+        "The multi-firm rating system and community feedback on Empirial are unmatched. I filtered firms by instant funding, no-time-limit challenges, and verified payout proofs before committing capital.",
+      rating: 5,
+    },
+    {
+      name: "Robert Taylor",
+      role: "Macro & Swing Trader",
+      avatar: "https://i.pravatar.cc/150?img=15",
+      content:
+        "Comparing evaluation rules across top prop firms side-by-side on Empirial completely transformed my strategy. I found a firm that matches my exact risk profile with static drawdown limits.",
       rating: 5,
     },
     {
@@ -78,38 +58,42 @@ export default function Testimonials() {
       rating: 5,
     },
     {
-      name: "Sophie Anderson",
-      role: "Quantitative Trader",
-      avatar: "https://i.pravatar.cc/150?img=21",
+      name: "Anuraj Sen",
+      role: "Funded Trader (NYS Capital)",
+      avatar: "https://i.pravatar.cc/150?img=11",
       content:
-        "The challenge filter on Empirial allowed me to sort prop firms by 1-step vs. 2-step evaluation rules, scaling plans, and payout speed. It's the ultimate resource for serious funded traders.",
+        "Passed my NYS Capital 1-Step evaluation using code EMPIRE! Empirial made comparing drawdown rules, payout speed, and profit targets effortless.",
       rating: 5,
     },
     {
-      name: "James Wilson",
-      role: "Funded Commodity Trader",
-      avatar: "https://i.pravatar.cc/150?img=23",
+      name: "David Krause",
+      role: "95% Split Trader (GTF)",
+      avatar: "https://i.pravatar.cc/150?img=33",
       content:
-        "Empirial's trading community and verified firm reviews made it easy to compare multi-firm options. Finding exclusive discount codes and event giveaways right on the platform is incredible.",
-      rating: 5,
-    },
-    {
-      name: "Elena Petrov",
-      role: "Forex Risk Manager",
-      avatar: "https://i.pravatar.cc/150?img=25",
-      content:
-        "Navigating prop firm evaluation rules used to be overwhelming. Empirial breaks down every parameter—from daily drawdown to profit targets—making it simple to choose the best challenge.",
-      rating: 5,
-    },
-    {
-      name: "Michael Chang",
-      role: "Multi-Account Funded Trader",
-      avatar: "https://i.pravatar.cc/150?img=27",
-      content:
-        "Thanks to Empirial's multi-firm comparative tools, I built a diversified portfolio of funded accounts across three top-tier firms. The community insights and unbiased ratings are invaluable.",
+        "Got my first payout of $4,200 with Goat Funded Trader! Finding discount codes and genuine ratings on Empirial saved me time and capital.",
       rating: 5,
     },
   ];
+
+  const [testimonials, setTestimonials] = useState<any[]>(DEFAULT_TESTIMONIALS);
+
+  useEffect(() => {
+    async function loadTestimonials() {
+      if (!db) return;
+      try {
+        const snap = await getDocs(collection(db, 'testimonials'));
+        if (!snap.empty && snap.docs.length >= 6) {
+          setTestimonials(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else {
+          setTestimonials(DEFAULT_TESTIMONIALS);
+        }
+      } catch (err) {
+        console.error('Failed to load testimonials:', err);
+        setTestimonials(DEFAULT_TESTIMONIALS);
+      }
+    }
+    loadTestimonials();
+  }, []);
 
   const StarIcon = () => (
     <svg
@@ -152,63 +136,132 @@ export default function Testimonials() {
         </motion.div>
 
         <div className="relative">
+          {/* Always Visible Primary Grid */}
           <div className="columns-2 gap-3 space-y-3 sm:gap-8 sm:space-y-8 md:columns-2 lg:columns-3">
-            {(showAll ? testimonials : testimonials.slice(0, visibleCount)).map(
-              (testimonial, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{
-                    duration: 0.6,
-                    delay: index * 0.05,
-                    ease: "easeOut",
-                  }}
-                  className="mb-3 break-inside-avoid sm:mb-8"
-                >
-                  <div className="rounded-lg border border-zinc-200/80 dark:border-border bg-white/60 dark:bg-card backdrop-blur-md p-3 transition-colors duration-300 sm:rounded-xl sm:p-6">
-                    <div className="mb-2 flex sm:mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <StarIcon key={i} />
-                      ))}
+            {testimonials.slice(0, visibleCount).map((testimonial, index) => (
+              <motion.div
+                key={testimonial.name + index}
+                initial={{ y: 20, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{
+                  duration: 0.6,
+                  delay: index * 0.05,
+                  ease: "easeOut",
+                }}
+                className="mb-3 break-inside-avoid sm:mb-8"
+              >
+                <div className="rounded-lg border border-zinc-200/80 dark:border-border bg-white/60 dark:bg-card backdrop-blur-md p-3 transition-colors duration-300 sm:rounded-xl sm:p-6 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700">
+                  <div className="mb-2 flex sm:mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <StarIcon key={i} />
+                    ))}
+                  </div>
+
+                  <p className="mb-4 text-xs leading-snug text-muted-foreground sm:mb-6 sm:text-sm sm:leading-relaxed">
+                    &ldquo;{testimonial.content}&rdquo;
+                  </p>
+
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-linear-to-br from-primary/20 to-primary/10 text-xs font-medium sm:h-10 sm:w-10 sm:text-sm">
+                      {testimonial.name
+                        .split(" ")
+                        .map((n: string) => n[0])
+                        .join("")}
                     </div>
-
-                    <p className="mb-4 text-xs leading-snug text-muted-foreground sm:mb-6 sm:text-sm sm:leading-relaxed">
-                      &ldquo;{testimonial.content}&rdquo;
-                    </p>
-
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-linear-to-br from-primary/20 to-primary/10 text-xs font-medium sm:h-10 sm:w-10 sm:text-sm">
-                        {testimonial.name
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .join("")}
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="truncate text-xs font-semibold sm:text-sm">
-                          {testimonial.name}
-                        </h4>
-                        <p className="truncate text-[10px] leading-tight text-muted-foreground sm:text-xs">
-                          {testimonial.role}
-                        </p>
-                      </div>
+                    <div className="min-w-0">
+                      <h4 className="truncate text-xs font-semibold sm:text-sm">
+                        {testimonial.name}
+                      </h4>
+                      <p className="truncate text-[10px] leading-tight text-muted-foreground sm:text-xs">
+                        {testimonial.role}
+                      </p>
                     </div>
                   </div>
-                </motion.div>
-              ),
-            )}
+                </div>
+              </motion.div>
+            ))}
           </div>
 
-          {!showAll && testimonials.length > visibleCount && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-background via-background/90 to-transparent" />
+          {/* Smooth Collapsible Height Container for Expanded Items */}
+          {testimonials.length > visibleCount && (
+            <motion.div
+              initial={false}
+              animate={{
+                height: showAll ? "auto" : 0,
+                opacity: showAll ? 1 : 0,
+              }}
+              transition={{
+                height: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+                opacity: { duration: 0.35, ease: "easeInOut" },
+              }}
+              className="overflow-hidden"
+            >
+              <div className="pt-3 sm:pt-8 columns-2 gap-3 space-y-3 sm:gap-8 sm:space-y-8 md:columns-2 lg:columns-3">
+                {testimonials.slice(visibleCount).map((testimonial, index) => (
+                  <motion.div
+                    key={testimonial.name + index}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={showAll ? { y: 0, opacity: 1 } : { y: 20, opacity: 0 }}
+                    transition={{
+                      duration: 0.4,
+                      delay: showAll ? index * 0.05 : 0,
+                      ease: "easeOut",
+                    }}
+                    className="mb-3 break-inside-avoid sm:mb-8"
+                  >
+                    <div className="rounded-lg border border-zinc-200/80 dark:border-border bg-white/60 dark:bg-card backdrop-blur-md p-3 transition-colors duration-300 sm:rounded-xl sm:p-6 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700">
+                      <div className="mb-2 flex sm:mb-4">
+                        {[...Array(testimonial.rating)].map((_, i) => (
+                          <StarIcon key={i} />
+                        ))}
+                      </div>
+
+                      <p className="mb-4 text-xs leading-snug text-muted-foreground sm:mb-6 sm:text-sm sm:leading-relaxed">
+                        &ldquo;{testimonial.content}&rdquo;
+                      </p>
+
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-linear-to-br from-primary/20 to-primary/10 text-xs font-medium sm:h-10 sm:w-10 sm:text-sm">
+                          {testimonial.name
+                            .split(" ")
+                            .map((n: string) => n[0])
+                            .join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="truncate text-xs font-semibold sm:text-sm">
+                            {testimonial.name}
+                          </h4>
+                          <p className="truncate text-[10px] leading-tight text-muted-foreground sm:text-xs">
+                            {testimonial.role}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           )}
+
+          {/* Smooth Fade Transition for Gradient Mask */}
+          <AnimatePresence>
+            {!showAll && testimonials.length > visibleCount && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.35 }}
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-linear-to-t from-background via-background/90 to-transparent z-10"
+              />
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <Button
             variant="outline"
-            className="rounded-xl px-5 font-semibold text-xs sm:text-sm border-border"
+            className="rounded-xl px-5 font-semibold text-xs sm:text-sm border-border cursor-pointer transition-all duration-200 active:scale-95 hover:border-zinc-400 dark:hover:border-zinc-600"
             onClick={() => setShowAll(!showAll)}
           >
             {showAll ? "View less" : "View more"}

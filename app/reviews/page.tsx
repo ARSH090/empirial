@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Metadata } from 'next';
 import { ReviewsClient } from './ReviewsClient';
 
@@ -8,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function ReviewsPage() {
-  return <ReviewsClient />;
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-slate-400">Loading Trader Reviews...</div>}>
+      <ReviewsClient />
+    </Suspense>
+  );
 }

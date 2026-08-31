@@ -51,9 +51,9 @@ const FIRM_LOGOS: Record<string, string> = {
 };
 
 export function ChallengesClient() {
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [firms, setFirms] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [challenges, setChallenges] = useState<Challenge[]>(MOCK_CHALLENGES);
+  const [firms, setFirms] = useState<any[]>(MOCK_FIRMS);
+  const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const firmParam = searchParams.get('firm');
 
@@ -96,12 +96,12 @@ export function ChallengesClient() {
     async function loadData() {
       try {
         const [challsData, firmsData] = await Promise.all([getChallenges(), getFirms()]);
-        if (challsData && challsData.length > 0) {
+        if (challsData && challsData.length >= 5 && challsData.every(c => c.name && c.firm_name)) {
           setChallenges(challsData);
         } else {
           setChallenges(MOCK_CHALLENGES);
         }
-        if (firmsData && firmsData.length > 0) {
+        if (firmsData && firmsData.length >= 5 && firmsData.every(f => f.name)) {
           setFirms(firmsData);
         } else {
           setFirms(MOCK_FIRMS);
@@ -323,7 +323,6 @@ export function ChallengesClient() {
               { label: 'Forex', val: 'forex' },
               { label: 'Futures', val: 'futures' },
               { label: 'Crypto', val: 'crypto' },
-              { label: 'Instant Funding', val: 'instant-funding' }
             ].map((cat) => (
               <button
                 key={cat.val}

@@ -49,16 +49,18 @@ export default function Partners() {
     async function loadPartners() {
       try {
         const data = await getPartnerLogos();
-        if (data && data.length > 0) {
-          // Map Firebase document format to logo/name
+        if (data && data.length >= 7) {
           const mapped = data.map(item => ({
             name: item.name,
-            logo: item.logo || item.logo_url
+            logo: item.logo || item.logo_url || '/logos/nys.png'
           }));
           setPartners(mapped);
+        } else {
+          setPartners(verifiedFirms);
         }
       } catch (err) {
         console.error('Failed to load partner logos:', err);
+        setPartners(verifiedFirms);
       }
     }
     loadPartners();

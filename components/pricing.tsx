@@ -17,7 +17,7 @@ export default function Pricing() {
     async function loadPricing() {
       try {
         const data = await getPricingPlans();
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && data[0].logo) {
           setFirms(data);
         } else {
           setFirms(DEFAULT_FIRMS);
@@ -38,7 +38,7 @@ export default function Pricing() {
       accountSize: "$5K - $100K",
       evalType: "( 1-Step )",
       isMostPop: false,
-      profitTarget: "6%", // 1-Step = 1 profit target
+      profitTarget: "6%",
       drawdownDaily: "4%",
       drawdownMax: "6%",
       lossType: "Trailing",
@@ -53,7 +53,7 @@ export default function Pricing() {
       accountSize: "$10K - $200K",
       evalType: "( 2-Step )",
       isMostPop: true,
-      profitTarget: "8% | 5%", // 2-Step = 2 profit targets
+      profitTarget: "8% | 5%",
       drawdownDaily: "5%",
       drawdownMax: "10%",
       lossType: "Static",
@@ -68,7 +68,7 @@ export default function Pricing() {
       accountSize: "$5K - $300K",
       evalType: "( Instant )",
       isMostPop: false,
-      profitTarget: "∞", // Instant = Infinity symbol
+      profitTarget: "8%",
       drawdownDaily: "4%",
       drawdownMax: "8%",
       lossType: "Static",
@@ -131,166 +131,169 @@ export default function Pricing() {
       </motion.div>
 
       <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3 md:gap-6 lg:gap-8 items-stretch">
-        {firms.map((firm, index) => (
-          <motion.div
-            key={firm.id}
-            initial={{ y: 20, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: index * 0.1 }}
-            className={`relative flex flex-col ${
-              firm.isMostPop ? "md:-translate-y-1 z-10" : ""
-            }`}
-          >
-            <div
-              className={`relative h-full rounded-[24px] flex flex-col justify-between p-6 sm:p-7 transition-all duration-200 ${
-                firm.isMostPop
-                  ? "border-2 border-black dark:border-white bg-[#f4f4f5]/75 dark:bg-card backdrop-blur-md shadow-sm"
-                  : "border border-zinc-200/80 dark:border-border bg-white/60 dark:bg-card backdrop-blur-md shadow-none"
+        {firms.slice(0, 3).map((firm, index) => {
+          const logoSrc = firm.logo || firm.logo_url || firm.image || "/logos/nys.png";
+          return (
+            <motion.div
+              key={firm.id || index}
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+              className={`relative flex flex-col ${
+                firm.isMostPop ? "md:-translate-y-1 z-10" : ""
               }`}
             >
-              {firm.isMostPop && (
-                <div className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 z-20">
-                  <span className="rounded-full border border-black dark:border-white bg-white dark:bg-card px-4 py-0.5 text-xs font-semibold text-foreground whitespace-nowrap shadow-none">
-                    Most Popular
-                  </span>
-                </div>
-              )}
-
-              <div>
-                {/* Header: Firm Name & Logo */}
-                <div className="text-center flex flex-col items-center justify-center">
-                  <h3 className="text-lg font-bold sm:text-xl text-foreground">
-                    {firm.name}
-                  </h3>
-                  
-                  {/* Logo - Slightly Larger */}
-                  <div className="my-3 flex items-center justify-center h-12 w-full">
-                    <img
-                      src={firm.logo}
-                      alt={firm.name}
-                      className="h-11 sm:h-12 w-auto max-w-[140px] sm:max-w-[160px] object-contain rounded-md"
-                    />
-                  </div>
-
-                  {/* Main Detail Before Dividing Line */}
-                  <div className="mt-1 flex flex-col items-center">
-                    <span className="text-2xl font-extrabold sm:text-3xl text-foreground tracking-tight">
-                      {firm.accountSize}
-                    </span>
-                    <span className="mt-1 text-xs font-semibold text-muted-foreground">
-                      {firm.evalType}
+              <div
+                className={`relative h-full rounded-[24px] flex flex-col justify-between p-6 sm:p-7 transition-all duration-200 ${
+                  firm.isMostPop
+                    ? "border-2 border-black dark:border-white bg-[#f4f4f5]/75 dark:bg-card backdrop-blur-md shadow-sm"
+                    : "border border-zinc-200/80 dark:border-border bg-white/60 dark:bg-card backdrop-blur-md shadow-none"
+                }`}
+              >
+                {firm.isMostPop && (
+                  <div className="absolute -top-3.5 left-1/2 transform -translate-x-1/2 z-20">
+                    <span className="rounded-full border border-black dark:border-white bg-white dark:bg-card px-4 py-0.5 text-xs font-semibold text-foreground whitespace-nowrap shadow-none">
+                      Most Popular
                     </span>
                   </div>
-                </div>
+                )}
 
-                {/* Dividing Line */}
-                <div className="my-5 h-[1px] w-full bg-zinc-200/80 dark:bg-border" />
+                <div>
+                  {/* Header: Firm Name & Logo */}
+                  <div className="text-center flex flex-col items-center justify-center">
+                    <h3 className="text-lg font-bold sm:text-xl text-foreground">
+                      {firm.name}
+                    </h3>
+                    
+                    {/* Logo - Slightly Larger with rounded-md edges */}
+                    <div className="my-3 flex items-center justify-center h-12 w-full">
+                      <img
+                        src={logoSrc}
+                        alt={firm.name}
+                        className="h-11 sm:h-12 w-auto max-w-[140px] sm:max-w-[160px] object-contain rounded-md"
+                      />
+                    </div>
 
-                {/* Details After Dividing Line */}
-                <div className="space-y-3 text-xs sm:text-sm">
-                  {/* 1st. PROFIT TARGET (1-Step = 1 target, 2-Step = 2 targets, Instant = ∞) */}
-                  <div className="flex justify-between items-center py-1 border-b border-zinc-200/50 dark:border-border/40">
-                    <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
-                      Profit Target
-                    </span>
-                    <span className={`font-bold text-foreground ${firm.profitTarget === "∞" ? "text-xl sm:text-2xl font-extrabold leading-none" : "text-sm"}`}>
-                      {firm.profitTarget}
-                    </span>
+                    {/* Main Detail Before Dividing Line */}
+                    <div className="mt-1 flex flex-col items-center">
+                      <span className="text-2xl font-extrabold sm:text-3xl text-foreground tracking-tight">
+                        {firm.accountSize || "$100K"}
+                      </span>
+                      <span className="mt-1 text-xs font-semibold text-muted-foreground">
+                        {firm.evalType || "( 2-Step )"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* 2nd. DRAWDOWN (Daily | Max) */}
-                  <div className="flex justify-between items-center py-1 border-b border-zinc-200/50 dark:border-border/40">
-                    <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
-                      Drawdown <span className="text-[10px] text-muted-foreground font-normal">(Daily | Max)</span>
-                    </span>
-                    <span className="font-bold text-foreground">
-                      {firm.drawdownDaily} | {firm.drawdownMax}
-                    </span>
+                  {/* Dividing Line */}
+                  <div className="my-5 h-[1px] w-full bg-zinc-200/80 dark:bg-border" />
+
+                  {/* Details After Dividing Line */}
+                  <div className="space-y-3 text-xs sm:text-sm">
+                    {/* 1st. PROFIT TARGET */}
+                    <div className="flex justify-between items-center py-1 border-b border-zinc-200/50 dark:border-border/40">
+                      <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
+                        Profit Target
+                      </span>
+                      <span className={`font-bold text-foreground ${firm.profitTarget === "∞" ? "text-xl sm:text-2xl font-extrabold leading-none" : "text-sm"}`}>
+                        {firm.profitTarget || "8%"}
+                      </span>
+                    </div>
+
+                    {/* 2nd. DRAWDOWN (Daily | Max) */}
+                    <div className="flex justify-between items-center py-1 border-b border-zinc-200/50 dark:border-border/40">
+                      <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
+                        Drawdown <span className="text-[10px] text-muted-foreground font-normal">(Daily | Max)</span>
+                      </span>
+                      <span className="font-bold text-foreground">
+                        {firm.drawdownDaily || "5%"} | {firm.drawdownMax || "10%"}
+                      </span>
+                    </div>
+
+                    {/* 3rd. MAX LOSS TYPE */}
+                    <div className="flex justify-between items-center py-1 border-b border-zinc-200/50 dark:border-border/40">
+                      <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
+                        Max Loss Type
+                      </span>
+                      <span className="font-bold text-foreground">
+                        {firm.lossType || "Static"}
+                      </span>
+                    </div>
+
+                    {/* 4th. PROFIT SPLIT */}
+                    <div className="flex justify-between items-center py-1">
+                      <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
+                        Profit Split
+                      </span>
+                      <span className="font-bold text-foreground">
+                        {firm.profitSplit || "80%"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* 3rd. MAX LOSS TYPE */}
-                  <div className="flex justify-between items-center py-1 border-b border-zinc-200/50 dark:border-border/40">
-                    <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
-                      Max Loss Type
+                  {/* Discount Display: XX% DISCOUNT with ( Max you can get ) */}
+                  <div className="mt-5 pt-3 border-t border-zinc-200/70 dark:border-border/70 flex flex-col items-center justify-center text-center">
+                    <span className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
+                      {firm.discount || "20% DISCOUNT"}
                     </span>
-                    <span className="font-bold text-foreground">
-                      {firm.lossType}
-                    </span>
-                  </div>
-
-                  {/* 4th. PROFIT SPLIT */}
-                  <div className="flex justify-between items-center py-1">
-                    <span className="font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
-                      Profit Split
-                    </span>
-                    <span className="font-bold text-foreground">
-                      {firm.profitSplit}
+                    <span className="mt-0.5 text-xs text-muted-foreground font-medium">
+                      ( Max you can get )
                     </span>
                   </div>
-                </div>
-
-                {/* Discount Display: XX% DISCOUNT with ( Max you can get ) */}
-                <div className="mt-5 pt-3 border-t border-zinc-200/70 dark:border-border/70 flex flex-col items-center justify-center text-center">
-                  <span className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
-                    {firm.discount}
-                  </span>
-                  <span className="mt-0.5 text-xs text-muted-foreground font-medium">
-                    ( Max you can get )
-                  </span>
-                </div>
-              </div>
-
-              {/* Bottom Buttons Section */}
-              <div className="mt-5 pt-1 flex flex-col gap-2 w-full">
-                <div className="flex items-center gap-2 w-full">
-                  {/* Code Empire Button with Vibrating Shake Effect */}
-                  <motion.button
-                    type="button"
-                    animate={shakingFirmId === firm.id ? { x: [-6, 6, -6, 6, -3, 3, 0] } : {}}
-                    transition={{ duration: 0.4 }}
-                    onClick={() => handleCopyCode(firm.code, firm.id)}
-                    className={`flex-1 font-semibold rounded-xl h-10 text-xs sm:text-sm border transition-colors cursor-pointer flex items-center justify-center shadow-xs ${
-                      hasCopiedCodes[firm.id]
-                        ? "border-black dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-black font-bold"
-                        : "border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground dark:hover:bg-zinc-800"
-                    }`}
-                  >
-                    {copiedCode === firm.id
-                      ? "Copied!"
-                      : hasCopiedCodes[firm.id]
-                      ? "Code Copied ✓"
-                      : "Code Empire"}
-                  </motion.button>
-
-                  {/* Buy Challenge Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleBuyChallenge(e, firm)}
-                    className="flex-1 font-semibold rounded-xl h-10 text-xs sm:text-sm bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer flex items-center justify-center shadow-xs"
-                  >
-                    Buy Challenge
-                  </button>
                 </div>
 
-                {/* Notification Warning Message */}
-                <AnimatePresence>
-                  {warningFirmId === firm.id && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.2 }}
-                      className="w-full text-center text-[11px] sm:text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-black dark:border-white bg-black text-white dark:bg-white dark:text-black shadow-md flex items-center justify-center gap-1"
+                {/* Bottom Buttons Section */}
+                <div className="mt-5 pt-1 flex flex-col gap-2 w-full">
+                  <div className="flex items-center gap-2 w-full">
+                    {/* Code Empire Button with Vibrating Shake Effect */}
+                    <motion.button
+                      type="button"
+                      animate={shakingFirmId === firm.id ? { x: [-6, 6, -6, 6, -3, 3, 0] } : {}}
+                      transition={{ duration: 0.4 }}
+                      onClick={() => handleCopyCode(firm.code || "EMPIRE", firm.id)}
+                      className={`flex-1 font-semibold rounded-xl h-10 text-xs sm:text-sm border transition-colors cursor-pointer flex items-center justify-center shadow-xs ${
+                        hasCopiedCodes[firm.id]
+                          ? "border-black dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-black font-bold"
+                          : "border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground dark:hover:bg-zinc-800"
+                      }`}
                     >
-                      <span>⚠️ Kindly Copy code for Max Discount</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      {copiedCode === firm.id
+                        ? "Copied!"
+                        : hasCopiedCodes[firm.id]
+                        ? "Code Copied ✓"
+                        : "Code Empire"}
+                    </motion.button>
+
+                    {/* Buy Challenge Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleBuyChallenge(e, firm)}
+                      className="flex-1 font-semibold rounded-xl h-10 text-xs sm:text-sm bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer flex items-center justify-center shadow-xs"
+                    >
+                      Buy Challenge
+                    </button>
+                  </div>
+
+                  {/* Notification Warning Message */}
+                  <AnimatePresence>
+                    {warningFirmId === firm.id && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-full text-center text-[11px] sm:text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-black dark:border-white bg-black text-white dark:bg-white dark:text-black shadow-md flex items-center justify-center gap-1"
+                      >
+                        <span>⚠️ Kindly Copy code for Max Discount</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );
