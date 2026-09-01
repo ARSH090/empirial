@@ -136,8 +136,10 @@ export async function seedDatabase() {
         tagline: 'Building Empires.',
         copyrightText: '© 2026 EMPIRIAL. All rights reserved.',
         socialLinks: [
-          { name: 'Twitter', href: 'https://twitter.com' },
+          { name: 'Instagram', href: 'https://www.instagram.com/anuraj_fx' },
+          { name: 'X', href: 'https://x.com/anuraj_fx' },
           { name: 'Discord', href: 'https://discord.gg/ww4dkeeZdp' },
+          { name: 'YouTube', href: 'https://www.youtube.com/@jaat_anuraj_fx' },
         ],
         footerLinks: [
           { name: 'Privacy Policy', href: '/privacy-policy' },
