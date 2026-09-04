@@ -24,6 +24,7 @@ import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Review, Firm } from '@/lib/types';
 import { getStoredUser, openAuthModal } from '@/lib/utils/auth-store';
 import { getReviews, getFirms, createReview } from '@/lib/firebase/services';
+import { calculateFirmMetrics } from '@/lib/utils/rating-calculator';
 import {
   Tooltip,
   TooltipContent,
@@ -41,6 +42,7 @@ export function ReviewsClient() {
   const [loading, setLoading] = useState(true);
 
   // Review Modal State
+  const [viewAllFirmId, setViewAllFirmId] = useState<string | null>(null);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [selectedModalFirmId, setSelectedModalFirmId] = useState<string>('nys');
   const [fullName, setFullName] = useState('');
@@ -170,30 +172,16 @@ export function ReviewsClient() {
             (firm.slug && r.firm_id === firm.slug.replace('-capital', '')))
       );
 
-      // Genuine Ratings calculation from reviews (or anchored to firm metrics)
-      const tradingConditions = matchingReviews.length > 0
-        ? matchingReviews.reduce((acc, r) => acc + (r.trading_conditions || 0), 0) / matchingReviews.length
-        : Math.min(5, Math.max(4.5, Number(((firm.rating || 4.5) + 0.1).toFixed(1))));
-
-      const customerCare = matchingReviews.length > 0
-        ? matchingReviews.reduce((acc, r) => acc + (r.customer_care || 0), 0) / matchingReviews.length
-        : Math.min(5, Math.max(4.4, Number(((firm.rating || 4.5) - 0.1).toFixed(1))));
-
-      const payoutProcess = matchingReviews.length > 0
-        ? matchingReviews.reduce((acc, r) => acc + (r.payout_process || 0), 0) / matchingReviews.length
-        : Math.min(5, Math.max(4.6, Number((firm.rating || 4.5).toFixed(1))));
-
-      // Main Rank Score: Exact genuine average of Trading Conditions, Customer Care, and Payout Process
-      const overallRank = Number(((tradingConditions + customerCare + payoutProcess) / 3).toFixed(1));
+      const metrics = calculateFirmMetrics(firm, reviewsList);
 
       return {
-        firm,
-        reviewCount: (firm.review_count || 0) + (matchingReviews.length > 2 ? matchingReviews.length - 2 : 0),
-        tradingConditions,
-        customerCare,
-        payoutProcess,
-        overallRank,
-        reviews: matchingReviews,
+        firm: metrics.firm,
+        reviewCount: metrics.reviewCount,
+        tradingConditions: metrics.tradingConditions,
+        customerCare: metrics.customerCare,
+        payoutProcess: metrics.payoutProcess,
+        overallRank: metrics.overallRank,
+        reviews: metrics.reviews,
       };
     }).filter(Boolean) as Array<{
       firm: any;
@@ -591,10 +579,14 @@ export function ReviewsClient() {
                                   </div>
                                   <button
                                     type="button"
-                                    onClick={(e) => handleOpenReviewModal(firm.id, e)}
-                                    className="text-xs font-semibold text-foreground underline underline-offset-4 hover:text-muted-foreground cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewAllFirmId(firm.id);
+                                    }}
+                                    className="text-xs font-bold text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors cursor-pointer flex items-center gap-1"
                                   >
-                                    + Add Your Feedback
+                                    <span>View All Reviews</span>
+                                    <ExternalLink className="w-3 h-3" />
                                   </button>
                                 </div>
 
@@ -895,6 +887,185 @@ export function ReviewsClient() {
               </motion.div>
             </div>
           )}
+        </AnimatePresence>
+
+        {/* View All Reviews Modal for Selected Firm */}
+        <AnimatePresence>
+          {viewAllFirmId && (() => {
+            const listFirms = firmsList.length > 0 ? firmsList : MOCK_FIRMS;
+            const targetRow = firmRows.find((r) => r.firm.id === viewAllFirmId || r.firm.slug === viewAllFirmId);
+            const targetFirm = targetRow?.firm || listFirms.find((f) => f.id === viewAllFirmId || f.slug === viewAllFirmId);
+            const matchingReviews = targetRow?.reviews || reviewsList.filter(
+              (r) =>
+                r.firm_id === viewAllFirmId ||
+                r.firm_id === targetFirm?.slug ||
+                (r.firm_name || '').toLowerCase() === (targetFirm?.name || '').toLowerCase()
+            );
+
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-3xl p-6 sm:p-8 max-w-4xl w-full space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]"
+                >
+                  {/* Modal Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-5">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 flex items-center justify-center shrink-0">
+                        <img
+                          src={targetFirm?.logo_url || '/logos/nys.png'}
+                          alt={targetFirm?.name || 'Firm'}
+                          className="h-8 w-auto max-w-[42px] object-contain rounded-md"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-lg font-bold text-foreground">{targetFirm?.name}</h2>
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                            <Star className="w-3 h-3 fill-emerald-500 text-emerald-500" />
+                            <span>{targetRow?.overallRank.toFixed(1) || '4.9'}</span>
+                          </span>
+                          <span className="text-xs text-muted-foreground font-semibold">
+                            ({matchingReviews.length} Community Reviews)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetId = targetFirm?.id || viewAllFirmId;
+                          setViewAllFirmId(null);
+                          handleOpenReviewModal(targetId);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                      >
+                        + Write A Review
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewAllFirmId(null)}
+                        className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Reviews Grid */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        All Community Reviews for {targetFirm?.name}
+                      </h3>
+                      <span className="text-xs font-semibold text-foreground">
+                        Showing {matchingReviews.length} reviews
+                      </span>
+                    </div>
+
+                    {matchingReviews.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {matchingReviews.map((rev) => {
+                          const reviewAverage = Number(
+                            (
+                              (rev.trading_conditions +
+                                rev.customer_care +
+                                rev.user_friendliness +
+                                rev.payout_process) /
+                              4
+                            ).toFixed(1)
+                          );
+
+                          return (
+                            <div
+                              key={rev.id}
+                              className="p-4.5 rounded-2xl bg-zinc-50/70 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 space-y-3 flex flex-col justify-between"
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    {renderStars(reviewAverage, false)}
+                                    <span className="text-xs font-bold text-foreground">
+                                      {reviewAverage.toFixed(1)}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    {rev.created_at}
+                                  </span>
+                                </div>
+
+                                <h4 className="text-xs sm:text-sm font-bold text-foreground leading-snug">
+                                  "{rev.title}"
+                                </h4>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {rev.body}
+                                </p>
+                              </div>
+
+                              <div className="space-y-2 pt-2 border-t border-zinc-200/60 dark:border-zinc-800">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[10px]">
+                                  <div className="p-1.5 rounded-lg bg-white dark:bg-card border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
+                                    <span className="text-muted-foreground">Trading:</span>
+                                    <span className="font-bold text-foreground">★ {rev.trading_conditions}/5</span>
+                                  </div>
+                                  <div className="p-1.5 rounded-lg bg-white dark:bg-card border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
+                                    <span className="text-muted-foreground">Support:</span>
+                                    <span className="font-bold text-foreground">★ {rev.customer_care}/5</span>
+                                  </div>
+                                  <div className="p-1.5 rounded-lg bg-white dark:bg-card border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
+                                    <span className="text-muted-foreground">Platform:</span>
+                                    <span className="font-bold text-foreground">★ {rev.user_friendliness}/5</span>
+                                  </div>
+                                  <div className="p-1.5 rounded-lg bg-white dark:bg-card border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
+                                    <span className="text-muted-foreground">Payout:</span>
+                                    <span className="font-bold text-foreground">★ {rev.payout_process}/5</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-1 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-[10px]">
+                                      {(rev.full_name || rev.user_name || 'TR').substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <span className="font-semibold text-foreground text-xs">{rev.full_name || rev.user_name}</span>
+                                  </div>
+                                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Verified Trader
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-muted-foreground text-xs space-y-3">
+                        <p>No community reviews published for {targetFirm?.name} yet.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetId = targetFirm?.id || viewAllFirmId;
+                            setViewAllFirmId(null);
+                            handleOpenReviewModal(targetId);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black text-xs font-semibold cursor-pointer"
+                        >
+                          Be the first to review {targetFirm?.name}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })()}
         </AnimatePresence>
 
       </div>

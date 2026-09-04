@@ -646,11 +646,137 @@ export async function getPartnerLogos(): Promise<any[]> {
   return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 }
 
+export async function savePartnerLogos(logos: any[]): Promise<void> {
+  if (!db) return;
+  const batch = writeBatch(db);
+  const colRef = collection(db, 'partnerLogos');
+  const existingSnap = await getDocs(colRef);
+  existingSnap.forEach(d => batch.delete(d.ref));
+  
+  logos.forEach((logo, index) => {
+    const docId = logo.id || `partner_${index}_${Date.now()}`;
+    const docRef = doc(db, 'partnerLogos', docId);
+    batch.set(docRef, {
+      ...logo,
+      id: docId,
+      order: index,
+      updated_at: new Date().toISOString()
+    });
+  });
+  await batch.commit();
+}
+
 export async function getPricingPlans(): Promise<any[]> {
   if (!db) return [];
   const colRef = collection(db, 'pricingPlans');
+  const snap = await getDocs(query(colRef, orderBy('order', 'asc')));
+  if (snap.empty) {
+    const fallbackSnap = await getDocs(colRef);
+    return fallbackSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  }
+  return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function savePricingPlans(plans: any[]): Promise<void> {
+  if (!db) return;
+  const batch = writeBatch(db);
+  const colRef = collection(db, 'pricingPlans');
+  const existingSnap = await getDocs(colRef);
+  existingSnap.forEach(d => batch.delete(d.ref));
+
+  plans.forEach((plan, index) => {
+    const docId = plan.id || `plan_${index}_${Date.now()}`;
+    const docRef = doc(db, 'pricingPlans', docId);
+    batch.set(docRef, {
+      ...plan,
+      id: docId,
+      order: index,
+      updated_at: new Date().toISOString()
+    });
+  });
+  await batch.commit();
+}
+
+export async function getTestimonialsList(): Promise<any[]> {
+  if (!db) return [];
+  const colRef = collection(db, 'testimonials');
   const snap = await getDocs(colRef);
   return snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function saveTestimonialsList(testimonials: any[]): Promise<void> {
+  if (!db) return;
+  const batch = writeBatch(db);
+  const colRef = collection(db, 'testimonials');
+  const existingSnap = await getDocs(colRef);
+  existingSnap.forEach(d => batch.delete(d.ref));
+
+  testimonials.forEach((t, index) => {
+    const docId = t.id || `testimonial_${index}_${Date.now()}`;
+    const docRef = doc(db, 'testimonials', docId);
+    batch.set(docRef, {
+      ...t,
+      id: docId,
+      order: index,
+      updated_at: new Date().toISOString()
+    });
+  });
+  await batch.commit();
+}
+
+export async function getLivePlatformStats(): Promise<{
+  activeTraders: number;
+  verifiedFirms: number;
+  challenges: number;
+  reviews: number;
+}> {
+  if (!db) {
+    return {
+      activeTraders: 50000,
+      verifiedFirms: 40,
+      challenges: 150,
+      reviews: 12000,
+    };
+  }
+  try {
+    const [usersSnap, firmsSnap, challsSnap, revsSnap] = await Promise.all([
+      getDocs(collection(db, 'users')),
+      getDocs(collection(db, 'firms')),
+      getDocs(collection(db, 'challenges')),
+      getDocs(collection(db, 'reviews')),
+    ]);
+
+    const usersCount = usersSnap.size;
+    const firmsCount = firmsSnap.size;
+    const challsCount = challsSnap.size;
+    const postedRevsCount = revsSnap.size;
+
+    // Calculate sum of review_count across all firms
+    let firmReviewsSum = 0;
+    firmsSnap.docs.forEach((d: any) => {
+      const data = d.data();
+      if (data.review_count && typeof data.review_count === 'number') {
+        firmReviewsSum += data.review_count;
+      }
+    });
+
+    const totalReviewsAggregate = firmReviewsSum + postedRevsCount;
+
+    return {
+      activeTraders: usersCount > 0 ? usersCount : 50000,
+      verifiedFirms: firmsCount > 0 ? firmsCount : 40,
+      challenges: challsCount > 0 ? challsCount : 150,
+      reviews: totalReviewsAggregate > 0 ? totalReviewsAggregate : 12000,
+    };
+  } catch (err) {
+    console.error('Failed to get live platform stats:', err);
+    return {
+      activeTraders: 50000,
+      verifiedFirms: 40,
+      challenges: 150,
+      reviews: 12000,
+    };
+  }
 }
 
 export async function getFaqs(): Promise<any[]> {

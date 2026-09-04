@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Building2,
   ShieldCheck,
   Star,
   Globe,
@@ -15,13 +15,35 @@ import {
   CheckCircle2,
   ExternalLink,
   ArrowRight,
+  Calendar,
+  Clock,
+  Layers,
+  Copy,
+  Check,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { RatingBadge } from '@/components/ui/rating-badge';
-import { CopyButton } from '@/components/ui/copy-button';
-import { ProfitSplitGauge } from '@/components/ui/profit-split-gauge';
-import { StrikePrice } from '@/components/ui/strike-price';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Firm, Challenge, Deal, Review, Payout } from '@/lib/types';
+import { calculateFirmMetrics } from '@/lib/utils/rating-calculator';
+
+// Platform Logo Dictionary from downloaded assets
+const PLATFORM_DATA: Record<string, { name: string; logo: string; type: 'forex' | 'futures' }> = {
+  mt5: { name: 'MetaTrader 5', logo: '/platforms/mt5.png', type: 'forex' },
+  ctrader: { name: 'cTrader', logo: '/platforms/ctrader.svg', type: 'forex' },
+  'match-trader': { name: 'Match-Trader', logo: '/platforms/match-trader.svg', type: 'forex' },
+  tradelocker: { name: 'TradeLocker', logo: '/platforms/tradelocker.jpeg', type: 'forex' },
+  ninjatrader: { name: 'NinjaTrader', logo: '/platforms/ninjatrader.svg', type: 'futures' },
+  tradovate: { name: 'Tradovate', logo: '/platforms/tradovate.png', type: 'futures' },
+  tradingview: { name: 'TradingView', logo: '/platforms/tradingview.png', type: 'futures' },
+  bookmap: { name: 'Bookmap', logo: '/platforms/bookmap.jpeg', type: 'futures' },
+  atas: { name: 'ATAS', logo: '/platforms/atas.jpeg', type: 'futures' },
+  deepcharts: { name: 'Deepcharts', logo: '/platforms/deepcharts.jpeg', type: 'futures' },
+  multicharts: { name: 'MultiCharts', logo: '/platforms/multicharts.svg', type: 'futures' },
+};
 
 interface FirmProfileClientProps {
   firm: Firm;
@@ -39,294 +61,452 @@ export function FirmProfileClient({
   firmPayouts,
 }: FirmProfileClientProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'challenges' | 'offers' | 'reviews'>('overview');
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const handleCopyCode = (code: string) => {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(code);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  // Genuine Synced Rating metrics calculations
+  const metrics = calculateFirmMetrics(firm, firmReviews);
+  const totalReviewsCount = metrics.reviewCount;
+  const computedRating = metrics.rating;
+
+  // Platforms lookup
+  const platformKeys = (firm.platform_ids || []).filter((pid) => PLATFORM_DATA[pid]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Top Banner & Identity Shell */}
-      <div className="bg-elevation-surface border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 blur-3xl pointer-events-none -z-10" />
-
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-2xl bg-elevation-card border-2 border-white/10 flex items-center justify-center font-black text-3xl text-cyan-400 shadow-xl">
-              {firm.name.substring(0, 3).toUpperCase()}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  {firm.name}
-                </h1>
-                {firm.is_verified && (
-                  <span className="inline-flex items-center gap-1 bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full text-xs font-bold">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    Audited
-                  </span>
-                )}
-              </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
-                {firm.description}
-              </p>
-              <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-slate-400">
-                <span>HQ: <strong className="text-white">{firm.headquarters}</strong></span>
-                <span>•</span>
-                <span>Platforms: <strong className="text-white">{firm.platforms}</strong></span>
-                <span>•</span>
-                <span>Trust Score: <strong className="text-cyan-400">{firm.trust_score}/100</strong></span>
-              </div>
-            </div>
-          </div>
-
-          {/* Top CTAs */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-            <CopyButton
-              textToCopy={firm.coupon_code_custom}
-              label={firm.coupon_code_custom}
-              size="md"
-            />
-            <Link
-              href={`/compare?firms=${firm.slug}`}
-              className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-elevation-card hover:bg-elevation-overlay border border-white/10 text-white font-bold text-xs text-center transition-all"
-            >
-              Compare Specs
-            </Link>
-            <Button asChild size="lg" className="rounded-xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black">
-              <Link href={firm.buy_url || '#'} target="_blank" rel="noopener noreferrer">
-                <span>Visit Official Site</span>
-                <ExternalLink className="ml-2 w-4 h-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* Quick Highlights Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
-          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">HQ Location</span>
-            <div className="text-sm font-bold text-white mt-0.5">{firm.headquarters || firm.country || 'Global'}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Founded</span>
-            <div className="text-sm font-bold text-white mt-0.5">{firm.founded_year || '2022'}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Max Allocation</span>
-            <div className="text-base font-bold text-cyan-400 font-mono mt-0.5">{firm.max_allocation}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-elevation-card border border-white/5">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Profit Split</span>
-            <div className="text-base font-bold text-emerald-400 font-mono mt-0.5">{firm.profit_split_custom}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sub-Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
-        {[
-          { id: 'overview', label: 'Rules & Specs Overview' },
-          { id: 'challenges', label: `Challenges (${firmChallenges.length})` },
-          { id: 'offers', label: `Promo Deals (${firmDeals.length})` },
-          { id: 'reviews', label: `Reviews & Ratings (${firmReviews.length})` },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === tab.id
-                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content 1: Overview */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Left: Rules & Payout Policy */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Consistency Rules */}
-            <div className="bg-elevation-surface border border-white/10 rounded-2xl p-6 space-y-3">
-              <div className="flex items-center gap-2 text-white font-bold text-base">
-                <ShieldCheck className="w-5 h-5 text-cyan-400" />
-                <h3>Consistency & Risk Policies</h3>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                {firm.consistency_rules_content || 'No strict lot size consistency required. Hedging allowed. Overnight holding allowed on swing accounts.'}
-              </p>
-            </div>
-
-            {/* Firm General Rules */}
-            <div className="bg-elevation-surface border border-white/10 rounded-2xl p-6 space-y-3">
-              <div className="flex items-center gap-2 text-white font-bold text-base">
-                <AlertCircle className="w-5 h-5 text-amber-400" />
-                <h3>Evaluation & Drawdown Rules</h3>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                {firm.firm_rules_content || 'Daily loss calculated based on balance or equity, whichever is higher at 00:00 CE(S)T. Weekend holding permitted on Swing challenge types.'}
-              </p>
-            </div>
-
-            {/* Payout Programs */}
-            {firm.payout_programs && firm.payout_programs.length > 0 && (
-              <div className="bg-elevation-surface border border-white/10 rounded-2xl p-6 space-y-4">
-                <h3 className="text-white font-bold text-base">Payout & Scaling Model</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="text-slate-400 uppercase tracking-wider text-[10px] border-b border-white/10 pb-2">
-                        <th className="pb-2 font-bold">Tier / Model</th>
-                        <th className="pb-2 font-bold">Payout Schedule</th>
-                        <th className="pb-2 font-bold">Profit Split</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {firm.payout_programs.map((prog, idx) => (
-                        <tr key={idx} className="text-slate-200">
-                          <td className="py-2.5 font-bold text-white">{prog.name}</td>
-                          <td className="py-2.5 font-mono text-cyan-400">{prog.schedule}</td>
-                          <td className="py-2.5 font-mono font-bold text-emerald-400">{prog.split}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+    <TooltipProvider>
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+          
+          {/* Main Top Profile Banner (Strict RULE:BW Compliance) */}
+          <div className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+            
+            {/* Top Identity Row */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              
+              {/* Firm Brand & Basic Specs */}
+              <div className="flex items-start sm:items-center gap-4 sm:gap-5">
+                <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center p-2 overflow-hidden shadow-xs">
+                  {firm.logo_url ? (
+                    <img
+                      src={firm.logo_url}
+                      alt={firm.name}
+                      className="h-12 w-auto max-w-[56px] object-contain rounded-md"
+                    />
+                  ) : (
+                    <span className="font-black text-xl sm:text-2xl text-foreground">
+                      {firm.name.substring(0, 3).toUpperCase()}
+                    </span>
+                  )}
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* Right Sidebar: Restricted Countries & Quick Actions */}
-          <div className="space-y-6">
-            {/* Restricted Countries */}
-            <div className="bg-elevation-surface border border-white/10 rounded-2xl p-6 space-y-3">
-              <div className="flex items-center gap-2 text-white font-bold text-sm">
-                <Globe className="w-4 h-4 text-rose-400" />
-                <h4>Restricted Jurisdictions</h4>
-              </div>
-              <p className="text-xs text-slate-400">
-                Residents from the following countries are currently prohibited from purchasing evaluation challenges:
-              </p>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {(firm.restricted_countries || ['US', 'IR', 'KP', 'SY', 'CU']).map((country) => (
-                  <span
-                    key={country}
-                    className="px-2 py-0.5 rounded bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs font-mono font-bold"
-                  >
-                    {country}
-                  </span>
-                ))}
-              </div>
-            </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                      {firm.name}
+                    </h1>
+                    {firm.is_verified && (
+                      <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300/40 dark:border-emerald-600/30 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Verified Audited
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                      <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
+                      <span>{computedRating.toFixed(1)}</span>
+                      <span className="text-muted-foreground font-medium">({totalReviewsCount})</span>
+                    </span>
+                  </div>
 
-            {/* Quick Deal Card */}
-            {firmDeals.length > 0 && (
-              <div className="bg-gradient-to-br from-cyan-950/40 to-elevation-surface border border-cyan-500/30 rounded-2xl p-6 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-cyan-400">ACTIVE PROMO</span>
-                  <span className="text-xs font-bold text-emerald-400">-{firmDeals[0].discount_pct}% OFF</span>
-                </div>
-                <h4 className="text-base font-bold text-white">{firmDeals[0].discount_label}</h4>
-                <div className="p-2.5 rounded-xl bg-elevation-card border border-white/5 flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-cyan-400">{firmDeals[0].code}</span>
-                  <CopyButton textToCopy={firmDeals[0].code} label="COPY" size="sm" />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                  <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl">
+                    {firm.description || 'Audited proprietary trading platform featuring institutional funding models.'}
+                  </p>
 
-      {/* Tab Content 2: Challenges */}
-      {activeTab === 'challenges' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {firmChallenges.map((ch) => (
-            <div key={ch.id} className="bg-elevation-surface border border-white/10 rounded-2xl p-5 space-y-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-xs font-bold text-cyan-400">${(ch.account_size / 1000).toFixed(0)}K Account</span>
-                  <h3 className="text-base font-bold text-white">{ch.name}</h3>
-                </div>
-                <span className="px-2 py-0.5 rounded bg-white/10 text-xs font-mono font-bold text-slate-300">
-                  {ch.steps === 0 ? 'Instant' : `${ch.steps}-Step`}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 py-3 rounded-xl bg-elevation-card border border-white/5 text-center items-center">
-                <div className="border-r border-white/5">
-                  <ProfitSplitGauge percentage={ch.profit_split_pct} size={40} />
-                </div>
-                <div className="border-r border-white/5">
-                  <span className="text-[10px] text-slate-400 uppercase">Max Loss</span>
-                  <div className="font-mono font-bold text-rose-400 text-sm">{ch.max_loss_limit_pct}%</div>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase">Target</span>
-                  <div className="font-mono font-bold text-emerald-400 text-sm">{ch.profit_target_pct}%</div>
+                  {/* Platforms list with zoom hover */}
+                  <div className="flex items-center gap-2 pt-1 flex-wrap text-xs">
+                    <span className="text-muted-foreground font-semibold">Platforms:</span>
+                    {platformKeys.length > 0 ? (
+                      platformKeys.map((pid) => {
+                        const p = PLATFORM_DATA[pid];
+                        return (
+                          <Tooltip key={pid}>
+                            <TooltipTrigger asChild>
+                              <motion.div
+                                whileHover={{ scale: 1.25 }}
+                                className="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center p-0.5 cursor-pointer"
+                              >
+                                <img src={p.logo} alt={p.name} className="h-4 w-4 object-contain" />
+                              </motion.div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[11px] font-bold bg-black text-white dark:bg-white dark:text-black">
+                              {p.name}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })
+                    ) : (
+                      <span className="font-bold text-foreground">{firm.platforms || 'MT5, cTrader'}</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                <StrikePrice price={ch.price} originalPrice={ch.original_price} size="md" />
+              {/* Action Buttons */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+                {/* Discount Code Button */}
+                <button
+                  type="button"
+                  onClick={() => handleCopyCode(firm.coupon_code_custom || 'EMPIRE')}
+                  className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-foreground text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                >
+                  {copiedCode ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>{firm.discount_label_custom || '20% OFF'}</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Compare Link */}
+                <Link
+                  href={`/compare?firms=${firm.slug}`}
+                  className="px-4 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground dark:hover:bg-zinc-800 text-xs font-semibold flex items-center gap-2 transition-all shadow-xs"
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>Compare</span>
+                </Link>
+
+                {/* Visit Official Site Button */}
                 <a
-                  href={ch.buy_url}
+                  href={firm.buy_url || 'https://discord.gg/ww4dkeeZdp'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-200 text-black font-bold text-xs"
+                  className="px-5 py-2.5 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
                 >
-                  Buy Challenge
+                  <span>Visit Official Site</span>
+                  <ExternalLink className="w-4 h-4" />
                 </a>
               </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Tab Content 3: Offers */}
-      {activeTab === 'offers' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {firmDeals.map((deal) => (
-            <div key={deal.id} className="bg-elevation-surface border border-white/10 rounded-2xl p-6 space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-cyan-400">{deal.discount_label}</span>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/40 px-2.5 py-0.5 rounded border border-emerald-500/30">
-                  -{deal.discount_pct}% OFF
-                </span>
+            {/* 4 Main Image 1 Stat Cards Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              {/* 1. Headquarters */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 flex items-start gap-3">
+                <Globe className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                    HEADQUARTERS
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                    {firm.headquarters || 'Dubai, UAE'}
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-slate-300">{deal.description}</p>
-              <div className="p-3 rounded-xl bg-elevation-card border border-white/5 flex items-center justify-between">
-                <span className="font-mono font-bold text-sm text-cyan-400">{deal.code}</span>
-                <CopyButton textToCopy={deal.code} label="COPY CODE" size="sm" />
+
+              {/* 2. Experience */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 flex items-start gap-3">
+                <Calendar className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                    EXPERIENCE
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                    {firm.years_working || `Est. ${firm.founded_year || '2024'}`}
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. Total Payouts */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 flex items-start gap-3">
+                <DollarSign className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                    TOTAL PAYOUTS
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                    {firm.total_payouts || '$15,000,000+'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 4. Avg Payout SLA */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 flex items-start gap-3">
+                <Clock className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                    AVG PAYOUT SLA
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                    {firm.avg_payout_time || '8-24 Hours'}
+                  </span>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Tab Content 4: Reviews */}
-      {activeTab === 'reviews' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {firmReviews.map((rev) => (
-              <div key={rev.id} className="bg-elevation-surface border border-white/10 rounded-2xl p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: rev.overall_rating }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-mono">{rev.created_at}</span>
-                </div>
-                <h4 className="text-sm font-bold text-white">{rev.title}</h4>
-                <p className="text-xs text-slate-300 leading-relaxed">"{rev.body}"</p>
-                <div className="text-xs font-bold text-slate-400">
-                  By <strong className="text-white">{rev.full_name}</strong> {rev.is_verified_trader && <span className="text-emerald-400">(Verified Trader)</span>}
-                </div>
+            {/* Evaluation Models Pills */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-muted-foreground font-semibold">Evaluation Models:</span>
+                {(firm.models || ['1-Step Challenge', '2-Step Evaluation', 'Instant Model']).map((model) => (
+                  <span
+                    key={model}
+                    className="px-3 py-1 rounded-lg text-xs font-semibold bg-zinc-100 dark:bg-zinc-900 text-foreground border border-zinc-200 dark:border-zinc-800"
+                  >
+                    {model}
+                  </span>
+                ))}
               </div>
+
+              <div className="text-xs text-muted-foreground font-medium">
+                Max Allocation: <strong className="text-foreground font-bold">{firm.max_allocation}</strong> (Profit Split {firm.profit_split_custom})
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-Navigation Tabs (Black & White Theme Tabs) */}
+          <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 overflow-x-auto no-scrollbar">
+            {[
+              { id: 'overview', label: 'Rules & Specs Overview' },
+              { id: 'challenges', label: `Challenges (${firmChallenges.length})` },
+              { id: 'offers', label: `Promo Deals (${firmDeals.length})` },
+              { id: 'reviews', label: `Verified Reviews (${firmReviews.length})` },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-black text-white dark:bg-white dark:text-black font-bold shadow-xs'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-foreground dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-foreground'
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
+
+          {/* Tab 1: Overview */}
+          {activeTab === 'overview' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Rules & Policies Left Column */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* Risk Policies */}
+                <div className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-6 space-y-3 shadow-xs">
+                  <div className="flex items-center gap-2 text-foreground font-bold text-base">
+                    <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                    <h2>Risk & Consistency Rules</h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    {firm.consistency_rules_content || 'No strict lot size consistency required. Hedging allowed across open accounts. Weekend holding permitted on Swing accounts.'}
+                  </p>
+                </div>
+
+                {/* Drawdown Rules */}
+                <div className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-6 space-y-3 shadow-xs">
+                  <div className="flex items-center gap-2 text-foreground font-bold text-base">
+                    <AlertCircle className="w-5 h-5 text-amber-500" />
+                    <h2>Evaluation & Maximum Drawdown Rules</h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    {firm.firm_rules_content || 'Maximum daily drawdown calculated based on previous day balance or equity at 00:00 CE(S)T. Hard breach results in immediate account closure.'}
+                  </p>
+                </div>
+
+                {/* Payout Schedule */}
+                {firm.payout_programs && firm.payout_programs.length > 0 && (
+                  <div className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-6 space-y-4 shadow-xs">
+                    <h2 className="text-foreground font-bold text-base">Payout Tiers & Scaling Model</h2>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="text-muted-foreground uppercase tracking-wider text-[10px] border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                            <th className="pb-2 font-bold">Model</th>
+                            <th className="pb-2 font-bold">Payout Schedule</th>
+                            <th className="pb-2 font-bold">Profit Split</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {firm.payout_programs.map((prog, idx) => (
+                            <tr key={idx} className="text-foreground">
+                              <td className="py-2.5 font-bold">{prog.name}</td>
+                              <td className="py-2.5 font-mono text-muted-foreground">{prog.schedule}</td>
+                              <td className="py-2.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">{prog.split}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-6">
+                {/* Restricted Countries */}
+                <div className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-6 space-y-3 shadow-xs">
+                  <div className="flex items-center gap-2 text-foreground font-bold text-sm">
+                    <Globe className="w-4 h-4 text-rose-500" />
+                    <h3>Restricted Jurisdictions</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Traders residing in the following jurisdictions are prohibited:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {(firm.restricted_countries || ['US', 'IR', 'KP', 'SY', 'CU']).map((country) => (
+                      <span
+                        key={country}
+                        className="px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-mono font-bold"
+                      >
+                        {country}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Active Promo Deal */}
+                {firmDeals.length > 0 && (
+                  <div className="bg-white dark:bg-card border-2 border-black dark:border-white rounded-2xl p-6 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">ACTIVE PROMO</span>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">-{firmDeals[0].discount_pct}% OFF</span>
+                    </div>
+                    <h3 className="text-base font-bold text-foreground">{firmDeals[0].discount_label}</h3>
+                    <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                      <span className="font-mono text-xs font-extrabold text-foreground">{firmDeals[0].code}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCode(firmDeals[0].code)}
+                        className="px-3 py-1.5 rounded-lg bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black text-xs font-semibold shadow-xs cursor-pointer"
+                      >
+                        {copiedCode ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Challenges */}
+          {activeTab === 'challenges' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {firmChallenges.map((ch) => (
+                <div key={ch.id} className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-6 space-y-4 shadow-xs">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                        ${(ch.account_size / 1000).toFixed(0)}K Account
+                      </span>
+                      <h3 className="text-lg font-extrabold text-foreground">{ch.name}</h3>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 text-xs font-mono font-bold text-foreground border border-zinc-200 dark:border-zinc-800">
+                      {ch.steps === 0 ? 'Instant' : `${ch.steps}-Step`}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 py-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-center">
+                    <div className="border-r border-zinc-200 dark:border-zinc-800">
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold block">Profit Split</span>
+                      <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">{ch.profit_split_pct}%</span>
+                    </div>
+                    <div className="border-r border-zinc-200 dark:border-zinc-800">
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold block">Max Loss</span>
+                      <span className="font-mono font-extrabold text-rose-500 text-sm">{ch.max_loss_limit_pct}%</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold block">Target</span>
+                      <span className="font-mono font-extrabold text-foreground text-sm">{ch.profit_target_pct}%</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-lg font-black text-foreground">${ch.price}</span>
+                      {ch.original_price && ch.original_price > ch.price && (
+                        <span className="text-xs text-muted-foreground line-through">${ch.original_price}</span>
+                      )}
+                    </div>
+                    <a
+                      href={ch.buy_url || firm.buy_url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-semibold text-xs transition-all cursor-pointer shadow-xs"
+                    >
+                      Buy Challenge
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Tab 3: Offers */}
+          {activeTab === 'offers' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {firmDeals.map((deal) => (
+                <div key={deal.id} className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-6 space-y-4 shadow-xs">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-base font-extrabold text-foreground">{deal.discount_label}</h3>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-300/40">
+                      -{deal.discount_pct}% OFF
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{deal.description}</p>
+                  <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                    <span className="font-mono font-bold text-sm text-foreground">{deal.code}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(deal.code)}
+                      className="px-3.5 py-1.5 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black text-xs font-semibold cursor-pointer shadow-xs"
+                    >
+                      Copy Code
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Tab 4: Reviews */}
+          {activeTab === 'reviews' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {firmReviews.map((rev) => (
+                  <div key={rev.id} className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-6 space-y-3.5 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: rev.overall_rating }).map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-mono">{rev.created_at}</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-foreground">{rev.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">"{rev.body}"</p>
+                    <div className="text-xs text-muted-foreground font-medium pt-1">
+                      By <strong className="text-foreground">{rev.full_name}</strong> {rev.is_verified_trader && <span className="text-emerald-600 dark:text-emerald-400 font-bold">(Verified Trader)</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
-      )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

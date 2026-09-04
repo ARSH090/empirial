@@ -19,8 +19,10 @@ import {
   Tag,
 } from 'lucide-react';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
-import { Deal } from '@/lib/types';
-import { getDeals } from '@/lib/firebase/services';
+import { MOCK_FIRMS } from '@/lib/data/firms-data';
+import { Deal, Firm, Review } from '@/lib/types';
+import { getDeals, getFirms, getReviews } from '@/lib/firebase/services';
+import { calculateFirmMetrics } from '@/lib/utils/rating-calculator';
 import { useEffect } from 'react';
 import {
   Tooltip,
@@ -39,6 +41,8 @@ type OfferFilterType = 'all' | 'bogo' | 'cashback' | 'refund' | 'discount';
 
 export function DealsClient() {
   const [deals, setDeals] = useState<Deal[]>(MOCK_DEALS);
+  const [firmsList, setFirmsList] = useState<Firm[]>(MOCK_FIRMS);
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedFirmType, setSelectedFirmType] = useState<string>('all');
@@ -51,22 +55,24 @@ export function DealsClient() {
   const [warningDealId, setWarningDealId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadDeals() {
+    async function loadData() {
       try {
-        const data = await getDeals();
-        if (data && data.length >= 5 && data.every(d => d.firm_name && d.code)) {
-          setDeals(data);
-        } else {
-          setDeals(MOCK_DEALS);
-        }
+        const [dealsData, firmsData, reviewsData] = await Promise.all([
+          getDeals().catch(() => []),
+          getFirms().catch(() => []),
+          getReviews().catch(() => []),
+        ]);
+
+        if (dealsData && dealsData.length > 0) setDeals(dealsData);
+        if (firmsData && firmsData.length > 0) setFirmsList(firmsData);
+        if (reviewsData && reviewsData.length > 0) setAllReviews(reviewsData);
       } catch (err) {
-        console.error('Failed to load deals:', err);
-        setDeals(MOCK_DEALS);
+        console.error('Failed to load deals data:', err);
       } finally {
         setLoading(false);
       }
     }
-    loadDeals();
+    loadData();
   }, []);
 
   const handleCopyCode = (code: string, dealId: string, e?: React.MouseEvent) => {
@@ -385,21 +391,45 @@ export function DealsClient() {
                             </div>
 
                             {/* Rating & Category Pills */}
-                            <div className="mt-1.5 flex items-center justify-center gap-2">
-                              {/* Green Star Design */}
-                              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/40 dark:border-emerald-600/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                                <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
-                                <span>{(deal.rating || 4.8).toFixed(1)}</span>
-                                <span className="text-[10px] text-muted-foreground font-normal">
-                                  ({deal.review_count?.toLocaleString('en-US') || '2,500+'})
-                                </span>
-                              </div>
+                            {(() => {
+                              const matchedFirm = (firmsList || []).find(
+                                (f: Firm) =>
+                                  f.id === deal.firm_id ||
+                                  f.slug === deal.firm_slug ||
+                                  (f.name || '').toLowerCase() === (deal.firm_name || '').toLowerCase()
+                              ) || MOCK_FIRMS.find(
+                                (f: Firm) =>
+                                  f.id === deal.firm_id ||
+                                  f.slug === deal.firm_slug ||
+                                  (f.name || '').toLowerCase() === (deal.firm_name || '').toLowerCase()
+                              ) || {
+                                id: deal.firm_id || 'nys',
+                                name: deal.firm_name,
+                                slug: deal.firm_slug || 'nys-capital',
+                                rating: deal.rating || 4.8,
+                                review_count: deal.review_count || 125,
+                              };
 
-                              {/* Firm Type Badge */}
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-100/90 dark:bg-zinc-900 text-foreground border border-zinc-200/80 dark:border-zinc-800">
-                                {deal.category}
-                              </span>
-                            </div>
+                              const metrics = calculateFirmMetrics(matchedFirm as any, allReviews);
+
+                              return (
+                                <div className="mt-1.5 flex items-center justify-center gap-2">
+                                  {/* Green Star Design */}
+                                  <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/40 dark:border-emerald-600/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                                    <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
+                                    <span>{metrics.rating.toFixed(1)}</span>
+                                    <span className="text-[10px] text-muted-foreground font-normal">
+                                      ({metrics.reviewCount.toLocaleString('en-US')} reviews)
+                                    </span>
+                                  </div>
+
+                                  {/* Firm Type Badge */}
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-100/90 dark:bg-zinc-900 text-foreground border border-zinc-200/80 dark:border-zinc-800">
+                                    {deal.category}
+                                  </span>
+                                </div>
+                              );
+                            })()}
 
                             {/* Prominent Authentic Logo */}
                             {(() => {

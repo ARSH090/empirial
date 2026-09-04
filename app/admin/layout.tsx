@@ -140,6 +140,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const adminNav: AdminNavItem[] = [
     { name: 'Dashboard Overview', href: '/admin', icon: LayoutDashboard },
+    { name: 'Home Page CMS', href: '/admin/page-builder', icon: Sliders },
     { name: 'Prop Firms Directory', href: '/admin/firms', icon: Building2 },
     { name: 'Evaluation Challenges', href: '/admin/challenges', icon: Trophy },
     { name: 'Discount Promo Deals', href: '/admin/deals', icon: Tag },
@@ -147,7 +148,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Tournaments & Events', href: '/admin/events', icon: Calendar },
     { name: 'Live Market Ticker', href: '/admin/market-ticker', icon: Radio },
     { name: 'Support Inbox', href: '/admin/messages', icon: Mail },
-    { name: 'Page Builder CMS', href: '/admin/page-builder', icon: Sliders },
     { name: 'Media Library', href: '/admin/media', icon: ImageIcon },
     { name: 'System Settings', href: '/admin/settings', icon: Settings },
   ];

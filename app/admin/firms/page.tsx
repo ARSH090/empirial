@@ -1,51 +1,129 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Trash2, Edit, ShieldCheck, Check, X } from 'lucide-react';
+import {
+  Building2,
+  Plus,
+  Trash2,
+  Edit,
+  ShieldCheck,
+  Check,
+  X,
+  Search,
+  ExternalLink,
+  Copy,
+  Sparkles,
+  Sliders,
+  Star,
+  Image as ImageIcon,
+  Clock,
+  Layers,
+  Globe,
+  Calendar,
+  DollarSign,
+  Tag,
+  Filter,
+} from 'lucide-react';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Firm } from '@/lib/types';
 import { getFirms, createFirm, updateFirm, deleteFirm } from '@/lib/firebase/services';
 
+const ALL_PLATFORMS = [
+  { id: 'mt5', name: 'MetaTrader 5', icon: '/platforms/mt5.png' },
+  { id: 'mt4', name: 'MetaTrader 4', icon: '/platforms/mt5.png' },
+  { id: 'ctrader', name: 'cTrader', icon: '/platforms/ctrader.svg' },
+  { id: 'match-trader', name: 'Match-Trader', icon: '/platforms/match-trader.svg' },
+  { id: 'tradelocker', name: 'TradeLocker', icon: '/platforms/tradelocker.jpeg' },
+  { id: 'tradingview', name: 'TradingView', icon: '/platforms/tradingview.png' },
+  { id: 'tradovate', name: 'Tradovate', icon: '/platforms/tradovate.png' },
+  { id: 'ninjatrader', name: 'NinjaTrader', icon: '/platforms/ninjatrader.svg' },
+  { id: 'bookmap', name: 'Bookmap', icon: '/platforms/bookmap.jpeg' },
+  { id: 'atas', name: 'ATAS', icon: '/platforms/atas.jpeg' },
+  { id: 'multicharts', name: 'MultiCharts', icon: '/platforms/multicharts.svg' },
+  { id: 'deepcharts', name: 'DeepCharts', icon: '/platforms/deepcharts.jpeg' },
+];
+
+const ALL_EVALUATION_MODELS = [
+  '1-Step Challenge',
+  '2-Step Evaluation',
+  '3-Step Challenge',
+  'Instant Model',
+  'Futures Combine',
+];
+
 export default function AdminFirmsPage() {
   const [firms, setFirms] = useState<Firm[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [isAdding, setIsAdding] = useState(false);
   const [editingFirm, setEditingFirm] = useState<Firm | null>(null);
 
-  // Form States
-  const [name, setName] = useState('');
-  const [trustScore, setTrustScore] = useState(90);
-  const [allocation, setAllocation] = useState('$2,000,000');
-  const [split, setSplit] = useState('Up to 90%');
-  const [payout, setPayout] = useState('Bi-Weekly');
-  const [discountLabel, setDiscountLabel] = useState('15% OFF');
-  const [couponCode, setCouponCode] = useState('EMPIRIAL15');
-  const [platforms, setPlatforms] = useState('MT5, cTrader');
-  const [category, setCategory] = useState<'forex' | 'futures' | 'crypto'>('forex');
-  const [foundedYear, setFoundedYear] = useState(2024);
-  const [headquarters, setHeadquarters] = useState('Dubai, UAE');
-  const [description, setDescription] = useState('Audited prop trading firm.');
-  const [logoUrl, setLogoUrl] = useState('/logos/ftmo.svg');
-  const [maxLossPct, setMaxLossPct] = useState(10);
-  const [dailyLossPct, setDailyLossPct] = useState(5);
-  const [profitTargetPct, setProfitTargetPct] = useState(8);
-  const [minPrice, setMinPrice] = useState(99);
-  const [isFeatured, setIsFeatured] = useState(true);
-  const [isVerified, setIsVerified] = useState(true);
-  const [isPopular, setIsPopular] = useState(true);
+  // Custom Directory Filters State
+  const [customDirectoryFilters, setCustomDirectoryFilters] = useState<string[]>([
+    'forex',
+    'futures',
+    'crypto',
+    'instant-funding',
+  ]);
+  const [newFilterInput, setNewFilterInput] = useState('');
+  const [showFilterManager, setShowFilterManager] = useState(false);
+
+  // Form States for Adding / Editing (Includes Image 1 specifications)
+  const [formData, setFormData] = useState<Partial<Firm> & { logo_shape?: string }>({
+    name: '',
+    slug: '',
+    type: 'prop_firm',
+    logo_url: '/logos/nys.png',
+    logo_shape: 'rounded-md',
+    rating: 4.8,
+    review_count: 125,
+    max_allocation: '$2,000,000',
+    profit_split_custom: 'Up to 90%',
+    payout_custom: 'Bi-Weekly / 14 Days',
+    discount_label_custom: '20% OFF',
+    coupon_code_custom: 'EMPIRE',
+    discount_pct: 20,
+    badge_custom: 'Audited Partner',
+    platforms: 'MT5, cTrader',
+    platform_ids: ['mt5', 'ctrader'],
+    category: 'forex',
+    is_featured: true,
+    is_verified: true,
+    is_popular: false,
+    trust_score: 95,
+    founded_year: 2024,
+    headquarters: 'Dubai, UAE',
+    country: 'UAE',
+    years_working: 'Est. 2024',
+    total_payouts: '$15,000,000+',
+    avg_payout_time: '8-24 Hours',
+    models: ['1-Step Challenge', '2-Step Evaluation', 'Instant Model'],
+    buy_url: 'https://discord.gg/ww4dkeeZdp',
+    max_loss_pct: 10,
+    daily_loss_pct: 5,
+    profit_target_pct: 8,
+    min_price: 99,
+    consistency_rules_content: 'No strict consistency rule on standard accounts.',
+    firm_rules_content: 'Minimum 0 trading days (No minimum requirement).',
+    description: 'Forensically audited prop firm with institutional liquidity and verified payouts.',
+  });
 
   useEffect(() => {
     async function loadFirms() {
       try {
         const data = await getFirms();
         if (data && data.length > 0) {
-          setFirms(data);
+          const uniqueFirms = Array.from(new Map(data.map((item) => [item.id || item.slug, item])).values());
+          setFirms(uniqueFirms);
         } else {
-          setFirms(MOCK_FIRMS);
+          const uniqueMocks = Array.from(new Map(MOCK_FIRMS.map((item) => [item.id, item])).values());
+          setFirms(uniqueMocks);
         }
       } catch (err) {
         console.error('Failed to load firms:', err);
-        setFirms(MOCK_FIRMS);
+        const uniqueMocks = Array.from(new Map(MOCK_FIRMS.map((item) => [item.id, item])).values());
+        setFirms(uniqueMocks);
       } finally {
         setLoading(false);
       }
@@ -53,7 +131,7 @@ export default function AdminFirmsPage() {
     loadFirms();
   }, []);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -62,691 +140,818 @@ export default function AdminFirmsPage() {
       return;
     }
 
-    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml', 'image/avif'].includes(file.type)) {
-      alert('Invalid image format. Supported formats: PNG, JPG, JPEG, WEBP, AVIF, SVG.');
-      return;
-    }
-
     const reader = new FileReader();
     reader.onloadend = () => {
-      if (isEdit && editingFirm) {
-        setEditingFirm({
-          ...editingFirm,
-          logo_url: reader.result as string
-        });
-      } else {
-        setLogoUrl(reader.result as string);
-      }
+      setFormData((prev) => ({
+        ...prev,
+        logo_url: reader.result as string,
+      }));
     };
     reader.readAsDataURL(file);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this firm profile?')) return;
-    try {
-      await deleteFirm(id);
-      setFirms(firms.filter(f => f.id !== id));
-    } catch (err) {
-      console.error('Failed to delete firm:', err);
-      setFirms(firms.filter(f => f.id !== id));
-    }
+  const togglePlatform = (pId: string) => {
+    const current = formData.platform_ids || [];
+    const next = current.includes(pId)
+      ? current.filter((id) => id !== pId)
+      : [...current, pId];
+    setFormData({
+      ...formData,
+      platform_ids: next,
+      platforms: next.map((id) => ALL_PLATFORMS.find((p) => p.id === id)?.name || id).join(', '),
+    });
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const toggleEvaluationModel = (model: string) => {
+    const current = formData.models || [];
+    const next = current.includes(model)
+      ? current.filter((m) => m !== model)
+      : [...current, model];
+    setFormData({
+      ...formData,
+      models: next,
+    });
+  };
+
+  const handleAddDirectoryFilter = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
-
-    const newFirm: Omit<Firm, 'id'> = {
-      name,
-      slug: name.toLowerCase().replace(/\s+/g, '-'),
-      logo_url: logoUrl,
-      rating: 4.8,
-      review_count: 100,
-      max_allocation: allocation,
-      profit_split_custom: split,
-      payout_custom: payout,
-      discount_label_custom: discountLabel,
-      coupon_code_custom: couponCode,
-      platforms,
-      category,
-      is_featured: isFeatured,
-      is_verified: isVerified,
-      is_popular: isPopular,
-      trust_score: trustScore,
-      founded_year: foundedYear,
-      headquarters,
-      max_loss_pct: maxLossPct,
-      daily_loss_pct: dailyLossPct,
-      profit_target_pct: profitTargetPct,
-      min_price: minPrice,
-      description,
-    };
-
-    try {
-      const id = await createFirm(newFirm);
-      setFirms([{ id, ...newFirm }, ...firms]);
-    } catch (err) {
-      console.error('Failed to create firm:', err);
-      setFirms([{ id: name.toLowerCase().replace(/\s+/g, '-'), ...newFirm }, ...firms]);
+    if (!newFilterInput.trim()) return;
+    const normalized = newFilterInput.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!customDirectoryFilters.includes(normalized)) {
+      setCustomDirectoryFilters([...customDirectoryFilters, normalized]);
     }
+    setNewFilterInput('');
+  };
 
-    setIsAdding(false);
-    resetForm();
+  const handleRemoveDirectoryFilter = (filter: string) => {
+    setCustomDirectoryFilters(customDirectoryFilters.filter((f) => f !== filter));
+  };
+
+  const handleStartAdd = () => {
+    setFormData({
+      name: '',
+      slug: '',
+      type: 'prop_firm',
+      logo_url: '/logos/nys.png',
+      logo_shape: 'rounded-md',
+      rating: 4.8,
+      review_count: 125,
+      max_allocation: '$2,000,000',
+      profit_split_custom: 'Up to 90%',
+      payout_custom: 'Bi-Weekly / 14 Days',
+      discount_label_custom: '20% OFF',
+      coupon_code_custom: 'EMPIRE',
+      discount_pct: 20,
+      badge_custom: 'Audited Partner',
+      platforms: 'MT5, cTrader',
+      platform_ids: ['mt5', 'ctrader'],
+      category: 'forex',
+      is_featured: true,
+      is_verified: true,
+      is_popular: false,
+      trust_score: 95,
+      founded_year: 2024,
+      headquarters: 'Dubai, UAE',
+      country: 'UAE',
+      years_working: 'Est. 2024',
+      total_payouts: '$15,000,000+',
+      avg_payout_time: '8-24 Hours',
+      models: ['1-Step Challenge', '2-Step Evaluation', 'Instant Model'],
+      buy_url: 'https://discord.gg/ww4dkeeZdp',
+      max_loss_pct: 10,
+      daily_loss_pct: 5,
+      profit_target_pct: 8,
+      min_price: 99,
+      consistency_rules_content: 'No consistency rule.',
+      firm_rules_content: 'No minimum trading days.',
+      description: 'Audited prop trading firm with institutional trading conditions.',
+    });
+    setEditingFirm(null);
+    setIsAdding(true);
   };
 
   const handleStartEdit = (firm: Firm) => {
+    setFormData({
+      ...firm,
+      platform_ids:
+        firm.platform_ids ||
+        (firm.platforms
+          ? firm.platforms.toLowerCase().split(/[,\s/]+/).map((s) => s.trim()).filter(Boolean)
+          : ['mt5', 'ctrader']),
+      models: firm.models || ['1-Step Challenge', '2-Step Evaluation', 'Instant Model'],
+      total_payouts: firm.total_payouts || '$15,000,000+',
+      avg_payout_time: firm.avg_payout_time || '8-24 Hours',
+      years_working: firm.years_working || (firm.founded_year ? `Est. ${firm.founded_year}` : 'Est. 2024'),
+    });
     setEditingFirm(firm);
+    setIsAdding(true);
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingFirm) return;
-
-    const updatedData: Partial<Firm> = {
-      name: editingFirm.name,
-      slug: editingFirm.name.toLowerCase().replace(/\s+/g, '-'),
-      logo_url: editingFirm.logo_url,
-      max_allocation: editingFirm.max_allocation,
-      profit_split_custom: editingFirm.profit_split_custom,
-      payout_custom: editingFirm.payout_custom,
-      discount_label_custom: editingFirm.discount_label_custom,
-      coupon_code_custom: editingFirm.coupon_code_custom,
-      platforms: editingFirm.platforms,
-      category: editingFirm.category,
-      is_featured: editingFirm.is_featured,
-      is_verified: editingFirm.is_verified,
-      is_popular: editingFirm.is_popular,
-      trust_score: editingFirm.trust_score,
-      founded_year: editingFirm.founded_year,
-      headquarters: editingFirm.headquarters,
-      max_loss_pct: editingFirm.max_loss_pct,
-      daily_loss_pct: editingFirm.daily_loss_pct,
-      profit_target_pct: editingFirm.profit_target_pct,
-      min_price: editingFirm.min_price,
-      description: editingFirm.description,
-    };
-
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to permanently remove this firm profile?')) return;
     try {
-      await updateFirm(editingFirm.id, updatedData);
-      setFirms(firms.map(f => f.id === editingFirm.id ? { ...f, ...updatedData } : f));
-      setEditingFirm(null);
+      await deleteFirm(id);
+      setFirms(firms.filter((f) => f.id !== id));
     } catch (err) {
-      console.error('Failed to update firm:', err);
-      setFirms(firms.map(f => f.id === editingFirm.id ? { ...f, ...updatedData } : f));
-      setEditingFirm(null);
+      console.error('Failed to delete firm:', err);
+      setFirms(firms.filter((f) => f.id !== id));
     }
   };
 
-  const resetForm = () => {
-    setName('');
-    setAllocation('$2,000,000');
-    setSplit('Up to 90%');
-    setPayout('Bi-Weekly');
-    setDiscountLabel('15% OFF');
-    setCouponCode('EMPIRIAL15');
-    setPlatforms('MT5, cTrader');
-    setCategory('forex');
-    setFoundedYear(2024);
-    setHeadquarters('Dubai, UAE');
-    setDescription('Audited prop trading firm.');
-    setLogoUrl('/logos/ftmo.svg');
-    setMaxLossPct(10);
-    setDailyLossPct(5);
-    setProfitTargetPct(8);
-    setMinPrice(99);
-    setTrustScore(90);
-    setIsFeatured(true);
-    setIsVerified(true);
-    setIsPopular(true);
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name) {
+      alert('Firm name is required');
+      return;
+    }
+
+    const slug = (formData.slug || formData.name).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    const firmPayload: Omit<Firm, 'id'> = {
+      name: formData.name.trim(),
+      slug,
+      type: formData.type || 'prop_firm',
+      logo_url: formData.logo_url || '/logos/nys.png',
+      rating: Number(formData.rating) || 4.8,
+      review_count: Number(formData.review_count) || 125,
+      max_allocation: formData.max_allocation || '$2,000,000',
+      profit_split_custom: formData.profit_split_custom || 'Up to 90%',
+      payout_custom: formData.payout_custom || 'Bi-Weekly / 14 Days',
+      discount_label_custom: formData.discount_label_custom || '20% OFF',
+      coupon_code_custom: (formData.coupon_code_custom || 'EMPIRE').toUpperCase(),
+      discount_pct: Number(formData.discount_pct) || 20,
+      badge_custom: formData.badge_custom || '',
+      platforms: formData.platforms || 'MT5, cTrader',
+      platform_ids: formData.platform_ids || ['mt5', 'ctrader'],
+      category: formData.category || 'forex',
+      is_featured: !!formData.is_featured,
+      is_verified: !!formData.is_verified,
+      is_popular: !!formData.is_popular,
+      trust_score: Number(formData.trust_score) || 95,
+      founded_year: Number(formData.founded_year) || 2024,
+      headquarters: formData.headquarters || 'Dubai, UAE',
+      country: formData.country || 'UAE',
+      years_working: formData.years_working || (formData.founded_year ? `Est. ${formData.founded_year}` : 'Est. 2024'),
+      total_payouts: formData.total_payouts || '$15,000,000+',
+      avg_payout_time: formData.avg_payout_time || '8-24 Hours',
+      models: formData.models || ['1-Step Challenge', '2-Step Evaluation', 'Instant Model'],
+      buy_url: formData.buy_url || 'https://discord.gg/ww4dkeeZdp',
+      max_loss_pct: Number(formData.max_loss_pct) || 10,
+      daily_loss_pct: Number(formData.daily_loss_pct) || 5,
+      profit_target_pct: Number(formData.profit_target_pct) || 8,
+      min_price: Number(formData.min_price) || 99,
+      consistency_rules_content: formData.consistency_rules_content || 'No Consistency Rule',
+      firm_rules_content: formData.firm_rules_content || '0 Days (No Min)',
+      description: formData.description || 'Audited prop firm.',
+    };
+
+    if (editingFirm) {
+      try {
+        await updateFirm(editingFirm.id, firmPayload);
+        setFirms(firms.map((f) => (f.id === editingFirm.id ? { ...f, ...firmPayload } : f)));
+      } catch (err) {
+        console.error('Failed to update firm:', err);
+        setFirms(firms.map((f) => (f.id === editingFirm.id ? { ...f, ...firmPayload } : f)));
+      }
+    } else {
+      try {
+        const id = await createFirm(firmPayload);
+        setFirms([{ id, ...firmPayload }, ...firms]);
+      } catch (err) {
+        console.error('Failed to create firm:', err);
+        setFirms([{ id: slug, ...firmPayload }, ...firms]);
+      }
+    }
+
+    setIsAdding(false);
+    setEditingFirm(null);
   };
+
+  const filteredFirms = firms.filter((f) => {
+    const matchesSearch =
+      !searchQuery ||
+      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.coupon_code_custom?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.headquarters?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCat = categoryFilter === 'all' || f.category === categoryFilter;
+    return matchesSearch && matchesCat;
+  });
 
   if (loading) {
     return (
-      <div className="py-20 text-center space-y-4">
-        <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-zinc-400 font-mono">Loading firms database...</p>
+      <div className="py-24 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-zinc-700 border-t-foreground rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-muted-foreground font-mono">Loading firms database...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center border-b border-white/10 pb-4">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
         <div>
-          <h1 className="text-xl font-semibold sm:text-2xl text-white">Prop Firms Directory Manager</h1>
-          <p className="text-xs text-slate-400">Configure parent prop firm listings, ratings, trust scores, and specifications.</p>
+          <h1 className="text-xl font-semibold sm:text-2xl bg-gradient-to-b from-foreground to-muted-foreground text-transparent bg-clip-text">
+            Prop Firms Directory Management
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            Configure partner firms, logos, shape styling, Image 1 fields (Headquarters, Experience, Total Payouts, Avg Payout SLA, Evaluation Models), and Directory Filters.
+          </p>
         </div>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs shadow cursor-pointer transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Firm</span>
-        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowFilterManager(!showFilterManager)}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold cursor-pointer shadow-2xs"
+          >
+            <Filter className="w-4 h-4" />
+            <span>Manage Directory Filters</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleStartAdd}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Firm</span>
+          </button>
+        </div>
       </div>
 
-      {isAdding && (
-        <form onSubmit={handleAdd} className="bg-elevation-surface border border-white/10 rounded-2xl p-5 space-y-4">
-          <h3 className="text-sm font-bold text-white">Add New Prop Firm Profile</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Firm Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="FTMO"
-                required
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Trust Score (out of 100)</label>
-              <input
-                type="number"
-                value={trustScore}
-                onChange={(e) => setTrustScore(parseInt(e.target.value))}
-                required
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Max Allocation</label>
-              <input
-                type="text"
-                value={allocation}
-                onChange={(e) => setAllocation(e.target.value)}
-                placeholder="$2,000,000"
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Profit Split</label>
-              <input
-                type="text"
-                value={split}
-                onChange={(e) => setSplit(e.target.value)}
-                placeholder="Up to 90%"
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Payout Cycle</label>
-              <input
-                type="text"
-                value={payout}
-                onChange={(e) => setPayout(e.target.value)}
-                placeholder="Bi-Weekly"
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Discount Label</label>
-              <input
-                type="text"
-                value={discountLabel}
-                onChange={(e) => setDiscountLabel(e.target.value)}
-                placeholder="15% OFF"
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Coupon Code</label>
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="EMPIRIAL15"
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Platforms</label>
-              <input
-                type="text"
-                value={platforms}
-                onChange={(e) => setPlatforms(e.target.value)}
-                placeholder="MT5, cTrader"
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              >
-                <option value="forex">Forex</option>
-                <option value="futures">Futures</option>
-                <option value="crypto">Crypto</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Founded Year</label>
-              <input
-                type="number"
-                value={foundedYear}
-                onChange={(e) => setFoundedYear(parseInt(e.target.value))}
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Headquarters</label>
-              <input
-                type="text"
-                value={headquarters}
-                onChange={(e) => setHeadquarters(e.target.value)}
-                placeholder="Prague, Czech Republic"
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Minimum Price ($)</label>
-              <input
-                type="number"
-                value={minPrice}
-                onChange={(e) => setMinPrice(parseFloat(e.target.value))}
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Max Loss Limit (%)</label>
-              <input
-                type="number"
-                value={maxLossPct}
-                onChange={(e) => setMaxLossPct(parseFloat(e.target.value))}
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Daily Loss Limit (%)</label>
-              <input
-                type="number"
-                value={dailyLossPct}
-                onChange={(e) => setDailyLossPct(parseFloat(e.target.value))}
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Profit Target (%)</label>
-              <input
-                type="number"
-                value={profitTargetPct}
-                onChange={(e) => setProfitTargetPct(parseFloat(e.target.value))}
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Firm Logo</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleLogoUpload(e)}
-                className="bg-elevation-base border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-1">
-            <label className="text-[10px] text-slate-400 uppercase font-semibold">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full bg-elevation-base border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-4 pt-1 text-xs">
-            <label className="flex items-center gap-2 text-white font-semibold cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
-                className="rounded border-zinc-700 text-purple-500 focus:ring-0 bg-transparent"
-              />
-              <span>Featured Listing</span>
-            </label>
-            <label className="flex items-center gap-2 text-white font-semibold cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isVerified}
-                onChange={(e) => setIsVerified(e.target.checked)}
-                className="rounded border-zinc-700 text-purple-500 focus:ring-0 bg-transparent"
-              />
-              <span>Audited / Verified</span>
-            </label>
-            <label className="flex items-center gap-2 text-white font-semibold cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isPopular}
-                onChange={(e) => setIsPopular(e.target.checked)}
-                className="rounded border-zinc-700 text-purple-500 focus:ring-0 bg-transparent"
-              />
-              <span>Popular Choice</span>
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-white/5 pt-3">
+      {/* Directory Filter Manager Panel */}
+      {showFilterManager && (
+        <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+              Directory Filter Categories ({customDirectoryFilters.length})
+            </h3>
             <button
               type="button"
-              onClick={() => setIsAdding(false)}
-              className="px-3 py-1.5 rounded-lg bg-elevation-card hover:bg-elevation-raised text-xs text-slate-300 transition-colors"
+              onClick={() => setShowFilterManager(false)}
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-bold text-xs transition-colors"
-            >
-              Save Firm Profile
+              Close
             </button>
           </div>
-        </form>
+          <p className="text-xs text-muted-foreground">Add or edit category filter pills displayed across the directory.</p>
+
+          <form onSubmit={handleAddDirectoryFilter} className="flex items-center gap-2 max-w-md">
+            <input
+              type="text"
+              placeholder="e.g. instant-funding, futures, forex"
+              value={newFilterInput}
+              onChange={(e) => setNewFilterInput(e.target.value)}
+              className="flex-1 bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground"
+            />
+            <button
+              type="submit"
+              className="px-4 py-1.5 rounded-xl bg-black text-white dark:bg-white dark:text-black text-xs font-semibold"
+            >
+              Add Filter
+            </button>
+          </form>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {customDirectoryFilters.map((flt) => (
+              <span
+                key={flt}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-foreground capitalize"
+              >
+                <span>{flt}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDirectoryFilter(flt)}
+                  className="hover:text-red-500 text-muted-foreground ml-1"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
       )}
 
-      {/* Editing Firm Modal */}
-      {editingFirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-          <form
-            onSubmit={handleSaveEdit}
-            className="bg-elevation-modal border border-white/15 rounded-3xl p-6 max-w-3xl w-full space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]"
+      {/* Search & Category Filter Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search firms, codes, locations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground transition-colors"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          <button
+            type="button"
+            onClick={() => setCategoryFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer whitespace-nowrap ${
+              categoryFilter === 'all'
+                ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground border border-transparent'
+            }`}
           >
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-cyan-400" />
-                <span>Edit Prop Firm Profile: {editingFirm.name}</span>
-              </h3>
+            All Asset Types
+          </button>
+          {customDirectoryFilters.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer whitespace-nowrap ${
+                categoryFilter === cat
+                  ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                  : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground border border-transparent'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Firms Grid / Cards System (Displaying Image 1 Specifications) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredFirms.map((firm, idx) => (
+          <div
+            key={`${firm.id || 'firm'}-${idx}`}
+            className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-xs hover:border-foreground transition-all duration-200"
+          >
+            <div>
+              {/* Image 1 Header: Logo, Name, Verified Badge, Headquarters */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 flex items-center justify-center shrink-0">
+                    <img
+                      src={firm.logo_url}
+                      alt={firm.name}
+                      className="h-8 w-auto max-w-[40px] object-contain rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-sm sm:text-base font-bold text-foreground">{firm.name}</h3>
+                      {firm.is_verified && <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />}
+                    </div>
+                    <span className="text-xs text-muted-foreground">{firm.headquarters || 'Dubai, UAE'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(firm)}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Edit Firm Specs"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(firm.id)}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Delete Firm Profile"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Image 1 Middle Stat Cards (4 Cards: Headquarters, Experience, Total Payouts, Avg Payout SLA) */}
+              <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
+                <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 space-y-0.5">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    <span>Headquarters</span>
+                  </span>
+                  <span className="font-bold text-foreground block truncate">{firm.headquarters || 'Dubai, UAE'}</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 space-y-0.5">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    <span>Experience</span>
+                  </span>
+                  <span className="font-bold text-foreground block truncate">
+                    {firm.years_working || (firm.founded_year ? `Est. ${firm.founded_year}` : 'Est. 2024')}
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 space-y-0.5">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    <span>Total Payouts</span>
+                  </span>
+                  <span className="font-bold text-foreground block truncate">{firm.total_payouts || '$15,000,000+'}</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 space-y-0.5">
+                  <span className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>Avg Payout SLA</span>
+                  </span>
+                  <span className="font-bold text-foreground block truncate">{firm.avg_payout_time || '8-24 Hours'}</span>
+                </div>
+              </div>
+
+              {/* Image 1 Bottom Models Pills */}
+              <div className="mt-3 space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Evaluation Models</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(firm.models || ['1-Step Challenge', '2-Step Evaluation', 'Instant Model']).map((m) => (
+                    <span
+                      key={m}
+                      className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 dark:bg-zinc-900 text-foreground border border-zinc-200 dark:border-zinc-800"
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Promo Code & Allocation Bar */}
+              <div className="mt-3 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase block">Allocation & Split</span>
+                  <span className="font-bold text-foreground">{firm.max_allocation} ({firm.profit_split_custom})</span>
+                </div>
+                <div className="flex items-center gap-1 font-mono font-bold bg-white dark:bg-card px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-foreground">
+                  <Copy className="w-3 h-3 text-muted-foreground" />
+                  <span>{firm.discount_label_custom || firm.coupon_code_custom || '20% OFF'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="pt-2 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 text-xs">
+              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
+                <span>{firm.rating?.toFixed(1)}</span>
+                <span className="text-muted-foreground font-normal">({firm.review_count} reviews)</span>
+              </span>
+
+              <a
+                href={`/firms/${firm.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-foreground hover:underline"
+              >
+                <span>View Full Profile</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add / Edit Modal Drawer with ALL IMAGE 1 FIELDS */}
+      {isAdding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <form
+            onSubmit={handleSave}
+            className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-3xl p-6 sm:p-8 max-w-3xl w-full space-y-5 shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-foreground" />
+                <h2 className="text-lg font-bold text-foreground">
+                  {editingFirm ? `Edit Firm Specs: ${editingFirm.name}` : 'Add New Prop Firm Profile'}
+                </h2>
+              </div>
               <button
                 type="button"
-                onClick={() => setEditingFirm(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-md"
+                onClick={() => setIsAdding(false)}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Firm Name</label>
+            {/* Form Fields Matrix */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              {/* Firm Name */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Firm Name *</label>
                 <input
                   type="text"
-                  value={editingFirm.name}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, name: e.target.value })}
                   required
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. NYS Capital"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Trust Score (out of 100)</label>
+
+              {/* Slug */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">URL Slug</label>
+                <input
+                  type="text"
+                  value={formData.slug || ''}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  placeholder="e.g. nys-capital"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
+                />
+              </div>
+
+              {/* Logo URL, Upload & Shape Option */}
+              <div className="space-y-1 md:col-span-2">
+                <label className="font-semibold text-foreground">Firm Logo (Upload Image & Shape)</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 flex items-center justify-center shrink-0">
+                    <img
+                      src={formData.logo_url || '/logos/nys.png'}
+                      alt="Logo preview"
+                      className="h-8 w-auto max-w-[40px] object-contain rounded-md"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.logo_url || ''}
+                    onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                    placeholder="/logos/nys.png or image URL"
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
+                  />
+                  <label className="px-3.5 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground font-semibold cursor-pointer shrink-0">
+                    Upload File
+                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              {/* IMAGE 1 FIELD 1: Headquarters */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Headquarters Location (Image 1 Specs) *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.headquarters || ''}
+                  onChange={(e) => setFormData({ ...formData, headquarters: e.target.value })}
+                  placeholder="e.g. Dubai, UAE"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground font-semibold"
+                />
+              </div>
+
+              {/* IMAGE 1 FIELD 2: Experience / Founded Year */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Experience / Founded Text (Image 1 Specs) *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.years_working || ''}
+                  onChange={(e) => setFormData({ ...formData, years_working: e.target.value })}
+                  placeholder="e.g. Est. 2024"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground font-semibold"
+                />
+              </div>
+
+              {/* IMAGE 1 FIELD 3: Total Payouts */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Total Payouts (Image 1 Specs) *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.total_payouts || ''}
+                  onChange={(e) => setFormData({ ...formData, total_payouts: e.target.value })}
+                  placeholder="e.g. $15,000,000+"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground font-semibold font-mono"
+                />
+              </div>
+
+              {/* IMAGE 1 FIELD 4: Avg Payout SLA */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Avg Payout SLA (Image 1 Specs) *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.avg_payout_time || ''}
+                  onChange={(e) => setFormData({ ...formData, avg_payout_time: e.target.value })}
+                  placeholder="e.g. 8-24 Hours"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground font-semibold"
+                />
+              </div>
+
+              {/* IMAGE 1 FIELD 5: Evaluation Models Checkboxes */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="font-semibold text-foreground block">Evaluation Models Supported (Image 1 Specs)</label>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_EVALUATION_MODELS.map((model) => {
+                    const isChecked = (formData.models || []).includes(model);
+                    return (
+                      <button
+                        key={model}
+                        type="button"
+                        onClick={() => toggleEvaluationModel(model)}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
+                          isChecked
+                            ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-2xs'
+                            : 'bg-zinc-50 dark:bg-zinc-900 text-muted-foreground border-zinc-200 dark:border-zinc-800 hover:border-foreground'
+                        }`}
+                      >
+                        <span>{model}</span>
+                        {isChecked && <Check className="w-3.5 h-3.5 inline ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Coupon Code & Discount Label */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Coupon Code</label>
+                <input
+                  type="text"
+                  value={formData.coupon_code_custom || ''}
+                  onChange={(e) => setFormData({ ...formData, coupon_code_custom: e.target.value })}
+                  placeholder="e.g. EMPIRE"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Discount Label (e.g. 20% OFF)</label>
+                <input
+                  type="text"
+                  value={formData.discount_label_custom || ''}
+                  onChange={(e) => setFormData({ ...formData, discount_label_custom: e.target.value })}
+                  placeholder="e.g. 20% OFF"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
+                />
+              </div>
+
+              {/* Max Allocation & Profit Split */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Max Allocation</label>
+                <input
+                  type="text"
+                  value={formData.max_allocation || ''}
+                  onChange={(e) => setFormData({ ...formData, max_allocation: e.target.value })}
+                  placeholder="e.g. $2,000,000"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Profit Split Custom</label>
+                <input
+                  type="text"
+                  value={formData.profit_split_custom || ''}
+                  onChange={(e) => setFormData({ ...formData, profit_split_custom: e.target.value })}
+                  placeholder="e.g. Up to 90%"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
+                />
+              </div>
+
+              {/* Directing / Buy Link */}
+              <div className="space-y-1 md:col-span-2">
+                <label className="font-semibold text-foreground">Buy / Affiliate Link (Directing URL)</label>
+                <input
+                  type="url"
+                  value={formData.buy_url || ''}
+                  onChange={(e) => setFormData({ ...formData, buy_url: e.target.value })}
+                  placeholder="https://firm.com/?ref=empirial"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
+                />
+              </div>
+
+              {/* Rating & Review Count */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Rating (1.0 - 5.0)</label>
                 <input
                   type="number"
-                  value={editingFirm.trust_score || 90}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, trust_score: parseInt(e.target.value) || 0 })}
-                  required
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                  step="0.1"
+                  min="1"
+                  max="5"
+                  value={formData.rating ?? 4.8}
+                  onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) || 4.8 })}
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Max Allocation</label>
-                <input
-                  type="text"
-                  value={editingFirm.max_allocation || ''}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, max_allocation: e.target.value })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Profit Split</label>
-                <input
-                  type="text"
-                  value={editingFirm.profit_split_custom || ''}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, profit_split_custom: e.target.value })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Payout Cycle</label>
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Review Count</label>
                 <input
-                  type="text"
-                  value={editingFirm.payout_custom || ''}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, payout_custom: e.target.value })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  type="number"
+                  value={formData.review_count ?? 125}
+                  onChange={(e) => setFormData({ ...formData, review_count: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Discount Label</label>
-                <input
-                  type="text"
-                  value={editingFirm.discount_label_custom || ''}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, discount_label_custom: e.target.value })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Coupon Code</label>
-                <input
-                  type="text"
-                  value={editingFirm.coupon_code_custom || ''}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, coupon_code_custom: e.target.value })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Platforms</label>
-                <input
-                  type="text"
-                  value={editingFirm.platforms || ''}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, platforms: e.target.value })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Category</label>
+              {/* Platforms Multi-Select */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="font-semibold text-foreground block">Platforms Supported</label>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_PLATFORMS.map((plat) => {
+                    const isSelected = (formData.platform_ids || []).includes(plat.id);
+                    return (
+                      <button
+                        key={plat.id}
+                        type="button"
+                        onClick={() => togglePlatform(plat.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white shadow-2xs'
+                            : 'bg-zinc-50 dark:bg-zinc-900 text-muted-foreground border-zinc-200 dark:border-zinc-800 hover:border-foreground'
+                        }`}
+                      >
+                        <img src={plat.icon} alt={plat.name} className="w-4 h-4 object-contain rounded" />
+                        <span>{plat.name}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 ml-0.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Category */}
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Category</label>
                 <select
-                  value={editingFirm.category}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, category: e.target.value as any })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  value={formData.category || 'forex'}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 >
-                  <option value="forex">Forex</option>
-                  <option value="futures">Futures</option>
-                  <option value="crypto">Crypto</option>
+                  {customDirectoryFilters.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat.toUpperCase()}
+                    </option>
+                  ))}
                 </select>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Founded Year</label>
-                <input
-                  type="number"
-                  value={editingFirm.founded_year || 0}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, founded_year: parseInt(e.target.value) || 0 })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                />
+
+              {/* Toggles */}
+              <div className="space-y-2 md:col-span-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="grid grid-cols-3 gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.is_verified}
+                      onChange={(e) => setFormData({ ...formData, is_verified: e.target.checked })}
+                      className="rounded border-zinc-300 text-black dark:text-white focus:ring-black"
+                    />
+                    <span className="font-semibold text-foreground">Verified Firm Badge</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.is_featured}
+                      onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                      className="rounded border-zinc-300 text-black dark:text-white focus:ring-black"
+                    />
+                    <span className="font-semibold text-foreground">Featured Firm</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.is_popular}
+                      onChange={(e) => setFormData({ ...formData, is_popular: e.target.checked })}
+                      className="rounded border-zinc-300 text-black dark:text-white focus:ring-black"
+                    />
+                    <span className="font-semibold text-foreground">Most Popular</span>
+                  </label>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Headquarters</label>
-                <input
-                  type="text"
-                  value={editingFirm.headquarters || ''}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, headquarters: e.target.value })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Minimum Price ($)</label>
-                <input
-                  type="number"
-                  value={editingFirm.min_price || 0}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, min_price: parseFloat(e.target.value) || 0 })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
+
+              {/* Description */}
+              <div className="space-y-1 md:col-span-2">
+                <label className="font-semibold text-foreground">Firm Description</label>
+                <textarea
+                  rows={2}
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Audited institutional prop trading firm..."
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Max Loss Limit (%)</label>
-                <input
-                  type="number"
-                  value={editingFirm.max_loss_pct || 0}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, max_loss_pct: parseFloat(e.target.value) || 0 })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Daily Loss Limit (%)</label>
-                <input
-                  type="number"
-                  value={editingFirm.daily_loss_pct || 0}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, daily_loss_pct: parseFloat(e.target.value) || 0 })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Profit Target (%)</label>
-                <input
-                  type="number"
-                  value={editingFirm.profit_target_pct || 0}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, profit_target_pct: parseFloat(e.target.value) || 0 })}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Replace Logo</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleLogoUpload(e, true)}
-                  className="bg-elevation-base border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-1">
-              <label className="text-[10px] text-slate-400 uppercase font-semibold">Description</label>
-              <textarea
-                value={editingFirm.description || ''}
-                onChange={(e) => setEditingFirm({ ...editingFirm, description: e.target.value })}
-                rows={2}
-                className="w-full bg-elevation-base border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-4 pt-1 text-xs">
-              <label className="flex items-center gap-2 text-white font-semibold cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={editingFirm.is_featured}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, is_featured: e.target.checked })}
-                  className="rounded border-zinc-700 text-purple-500 focus:ring-0 bg-transparent"
-                />
-                <span>Featured Listing</span>
-              </label>
-              <label className="flex items-center gap-2 text-white font-semibold cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={editingFirm.is_verified}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, is_verified: e.target.checked })}
-                  className="rounded border-zinc-700 text-purple-500 focus:ring-0 bg-transparent"
-                />
-                <span>Audited / Verified</span>
-              </label>
-              <label className="flex items-center gap-2 text-white font-semibold cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={editingFirm.is_popular}
-                  onChange={(e) => setEditingFirm({ ...editingFirm, is_popular: e.target.checked })}
-                  className="rounded border-zinc-700 text-purple-500 focus:ring-0 bg-transparent"
-                />
-                <span>Popular Choice</span>
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-white/10 pt-3">
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
               <button
                 type="button"
-                onClick={() => setEditingFirm(null)}
-                className="px-3 py-1.5 rounded-lg bg-elevation-card hover:bg-elevation-raised text-xs text-slate-300 transition-colors"
+                onClick={() => setIsAdding(false)}
+                className="px-5 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-bold text-xs transition-colors"
+                className="px-6 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold cursor-pointer shadow-xs"
               >
-                Save Changes
+                {editingFirm ? 'Save Firm Specs' : 'Create Firm'}
               </button>
             </div>
           </form>
         </div>
       )}
-
-      {/* Firms Table */}
-      <div className="bg-elevation-surface border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-white/10 bg-elevation-card text-slate-400 uppercase font-bold text-[10px]">
-              <th className="p-4">Logo</th>
-              <th className="p-4">Firm Name</th>
-              <th className="p-4">Trust Score</th>
-              <th className="p-4">Max Allocation</th>
-              <th className="p-4">Profit Split</th>
-              <th className="p-4">Coupon Code</th>
-              <th className="p-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5 text-slate-200">
-            {firms.map((f) => (
-              <tr key={f.id} className="hover:bg-elevation-raised/60">
-                <td className="p-4">
-                  <div className="w-8 h-8 rounded-lg bg-elevation-card border border-white/5 flex items-center justify-center overflow-hidden">
-                    <img src={f.logo_url} alt={f.name} className="object-contain max-w-full max-h-full p-1" />
-                  </div>
-                </td>
-                <td className="p-4 font-bold text-white">
-                  <div className="flex items-center gap-1.5">
-                    <span>{f.name}</span>
-                    {f.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                  </div>
-                </td>
-                <td className="p-4 font-mono text-cyan-400 font-bold">{f.trust_score}/100</td>
-                <td className="p-4 font-mono">{f.max_allocation}</td>
-                <td className="p-4 font-mono text-emerald-400">{f.profit_split_custom}</td>
-                <td className="p-4 font-mono text-purple-300">{f.coupon_code_custom}</td>
-                <td className="p-4 text-right space-x-1.5">
-                  <button
-                    onClick={() => handleStartEdit(f)}
-                    className="p-1.5 rounded bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(f.id)}
-                    className="p-1.5 rounded bg-rose-950/40 text-rose-400 hover:bg-rose-900/60 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

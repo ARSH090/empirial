@@ -25,8 +25,9 @@ import {
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
-import { Challenge } from '@/lib/types';
-import { getChallenges, getFirms } from '@/lib/firebase/services';
+import { Challenge, Review } from '@/lib/types';
+import { getChallenges, getFirms, getReviews } from '@/lib/firebase/services';
+import { calculateFirmMetrics } from '@/lib/utils/rating-calculator';
 
 // Map firm IDs to authentic uploaded local logo assets in /logos/
 const FIRM_LOGOS: Record<string, string> = {
@@ -92,19 +93,28 @@ export function ChallengesClient() {
   const [shakingChallengeId, setShakingChallengeId] = useState<string | null>(null);
   const [warningChallengeId, setWarningChallengeId] = useState<string | null>(null);
 
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
+
   useEffect(() => {
     async function loadData() {
       try {
-        const [challsData, firmsData] = await Promise.all([getChallenges(), getFirms()]);
-        if (challsData && challsData.length >= 5 && challsData.every(c => c.name && c.firm_name)) {
+        const [challsData, firmsData, revsData] = await Promise.all([
+          getChallenges(),
+          getFirms(),
+          getReviews()
+        ]);
+        if (challsData && challsData.length > 0) {
           setChallenges(challsData);
         } else {
           setChallenges(MOCK_CHALLENGES);
         }
-        if (firmsData && firmsData.length >= 5 && firmsData.every(f => f.name)) {
+        if (firmsData && firmsData.length > 0) {
           setFirms(firmsData);
         } else {
           setFirms(MOCK_FIRMS);
+        }
+        if (revsData && revsData.length > 0) {
+          setAllReviews(revsData);
         }
       } catch (err) {
         console.error('Failed to load challenges data:', err);
@@ -123,6 +133,7 @@ export function ChallengesClient() {
   const stepOptions = [
     { label: '1-Step', val: 1 },
     { label: '2-Step', val: 2 },
+    { label: '3-Step', val: 3 },
     { label: 'Instant Funding (0-Step)', val: 0 }
   ];
 
@@ -525,10 +536,28 @@ export function ChallengesClient() {
                       : `${ch.profit_target_pct}%`;
                     const ddStr = `${ch.daily_loss_limit_pct === 0 ? 'None' : ch.daily_loss_limit_pct + '%'} | ${ch.max_loss_limit_pct}%`;
 
-                    // Authentically resolved firm logo path
+                    // Authentically resolved firm logo path and live ratings
+                    const matchedFirm = firmOptions.find(
+                      (f) =>
+                        f.id === ch.firm_id ||
+                        f.slug === ch.firm_slug ||
+                        (f.name || '').toLowerCase() === (ch.firm_name || '').toLowerCase()
+                    ) || MOCK_FIRMS.find(
+                      (f) =>
+                        f.id === ch.firm_id ||
+                        f.slug === ch.firm_slug ||
+                        (f.name || '').toLowerCase() === (ch.firm_name || '').toLowerCase()
+                    ) || {
+                      id: ch.firm_id,
+                      name: ch.firm_name,
+                      slug: ch.firm_slug,
+                      rating: ch.rating || 4.8,
+                      review_count: ch.review_count || 125,
+                    };
+                    const firmMetrics = calculateFirmMetrics(matchedFirm as any, allReviews);
                     const firmLogoSrc = FIRM_LOGOS[ch.firm_id] || ch.firm_logo || '/logos/nys.png';
-                    const ratingVal = ch.rating || 4.9;
-                    const reviewCountVal = ch.review_count || 2430;
+                    const ratingVal = firmMetrics.rating;
+                    const reviewCountVal = firmMetrics.reviewCount;
 
                     return (
                       <motion.div

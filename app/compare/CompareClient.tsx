@@ -27,8 +27,9 @@ import {
 } from 'lucide-react';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { MOCK_CHALLENGES } from '@/lib/data/challenges-data';
-import { Firm, Challenge } from '@/lib/types';
-import { getFirms, getChallenges } from '@/lib/firebase/services';
+import { Firm, Challenge, Review } from '@/lib/types';
+import { getFirms, getChallenges, getReviews } from '@/lib/firebase/services';
+import { calculateFirmMetrics } from '@/lib/utils/rating-calculator';
 import {
   calculateFirmComparisonScores,
   calculateChallengeComparisonScores,
@@ -83,15 +84,24 @@ export function CompareClient() {
   // Db States
   const [dbFirms, setDbFirms] = useState<Firm[]>([]);
   const [dbChallenges, setDbChallenges] = useState<Challenge[]>([]);
+  const [dbReviews, setDbReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     async function loadCompareData() {
       try {
-        const [fData, cData] = await Promise.all([getFirms(), getChallenges()]);
+        const [fData, cData, rData] = await Promise.all([
+          getFirms(),
+          getChallenges(),
+          getReviews()
+        ]);
+        const reviewsList = rData || [];
+        setDbReviews(reviewsList);
         if (fData && fData.length > 0) {
-          setDbFirms(fData);
+          const syncedFirms = fData.map((f) => calculateFirmMetrics(f, reviewsList).firm);
+          setDbFirms(syncedFirms);
         } else {
-          setDbFirms(MOCK_FIRMS);
+          const syncedMocks = MOCK_FIRMS.map((f) => calculateFirmMetrics(f, reviewsList).firm);
+          setDbFirms(syncedMocks);
         }
         if (cData && cData.length > 0) {
           setDbChallenges(cData);
@@ -567,8 +577,32 @@ export function CompareClient() {
                       const slotColor = SLOT_COLORS[idx % SLOT_COLORS.length];
                       const firmName = 'name' in item && 'type' in item ? (item as Firm).name : (item as Challenge).firm_name;
                       const firmLogo = 'logo_url' in item ? (item as Firm).logo_url : ((item as Challenge).firm_logo || '/logos/nys.png');
-                      const rating = item.rating || 4.9;
-                      const reviewCount = item.review_count || 2430;
+
+                      const matchedFirm = (dbFirms.length > 0 ? dbFirms : MOCK_FIRMS).find(
+                        (f: Firm) =>
+                          f.id === (item as any).firm_id ||
+                          f.id === item.id ||
+                          f.slug === (item as any).firm_slug ||
+                          f.slug === (item as any).slug ||
+                          (f.name || '').toLowerCase() === firmName.toLowerCase()
+                      ) || MOCK_FIRMS.find(
+                        (f: Firm) =>
+                          f.id === (item as any).firm_id ||
+                          f.id === item.id ||
+                          f.slug === (item as any).firm_slug ||
+                          f.slug === (item as any).slug ||
+                          (f.name || '').toLowerCase() === firmName.toLowerCase()
+                      ) || {
+                        id: item.id,
+                        name: firmName,
+                        slug: (item as any).slug || 'firm',
+                        rating: item.rating || 4.8,
+                        review_count: item.review_count || 125,
+                      };
+
+                      const metrics = calculateFirmMetrics(matchedFirm as any, dbReviews);
+                      const rating = metrics.rating;
+                      const reviewCount = metrics.reviewCount;
 
                       return (
                         <th key={item.id} className="p-4 sm:p-5 min-w-[240px] sm:min-w-[280px]">

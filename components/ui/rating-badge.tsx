@@ -5,21 +5,36 @@ interface RatingBadgeProps {
   rating: number;
   reviewCount?: number;
   showStars?: boolean;
+  showReviewsText?: boolean;
   size?: 'sm' | 'md';
+  className?: string;
 }
 
-export function RatingBadge({ rating, reviewCount, showStars = true, size = 'sm' }: RatingBadgeProps) {
+export function RatingBadge({
+  rating,
+  reviewCount,
+  showStars = true,
+  showReviewsText = true,
+  size = 'sm',
+  className = '',
+}: RatingBadgeProps) {
+  const formattedRating = (rating || 4.8).toFixed(1);
+  const formattedCount = reviewCount !== undefined && reviewCount !== null ? reviewCount.toLocaleString('en-US') : null;
+
   return (
-    <div className="inline-flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full text-emerald-400 font-medium">
-      {showStars && <Star className="w-3 h-3 fill-emerald-400 text-emerald-400" />}
+    <div
+      className={`inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/40 dark:border-emerald-600/30 px-2.5 py-0.5 rounded-full text-emerald-600 dark:text-emerald-400 font-medium ${className}`}
+    >
+      {showStars && <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500 shrink-0" />}
       <span className={size === 'sm' ? 'text-xs font-bold' : 'text-sm font-bold'}>
-        {rating.toFixed(1)}
+        {formattedRating}
       </span>
-      {reviewCount !== undefined && (
-        <span className="text-[10px] text-slate-400 font-normal">
-          ({reviewCount})
+      {formattedCount !== null && (
+        <span className="text-[10px] text-muted-foreground font-normal">
+          ({formattedCount}{showReviewsText ? ' reviews' : ''})
         </span>
       )}
     </div>
   );
 }
+

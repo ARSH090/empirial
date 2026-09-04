@@ -82,8 +82,15 @@ export default function Testimonials() {
       if (!db) return;
       try {
         const snap = await getDocs(collection(db, 'testimonials'));
-        if (!snap.empty && snap.docs.length >= 6) {
-          setTestimonials(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        if (!snap.empty && snap.docs.length > 0) {
+          const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          // Filter only active if is_active is defined
+          const activeList = list.filter((t: any) => t.is_active !== false);
+          if (activeList.length > 0) {
+            setTestimonials(activeList);
+          } else {
+            setTestimonials(DEFAULT_TESTIMONIALS);
+          }
         } else {
           setTestimonials(DEFAULT_TESTIMONIALS);
         }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSiteSettings } from "@/lib/firebase/services";
+import { getSiteSettings, getLivePlatformStats } from "@/lib/firebase/services";
 import NumberFlow from "@number-flow/react";
 import { motion } from "framer-motion";
 
@@ -19,22 +19,51 @@ export default function Stats() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const settings = await getSiteSettings();
-        if (settings && settings.stats && settings.stats.length >= 4) {
-          // Verify that Firestore stats match required labels or use DEFAULT_STATS
-          const hasRequiredLabels = settings.stats.some(
-            (s: any) => s.label === "Verified Firms" || s.label === "Challenges"
-          );
-          if (hasRequiredLabels) {
-            setStats(settings.stats);
-          } else {
-            setStats(DEFAULT_STATS);
-          }
-        } else {
-          setStats(DEFAULT_STATS);
+        const [settings, liveStats] = await Promise.all([
+          getSiteSettings(),
+          getLivePlatformStats(),
+        ]);
+
+        if (settings && settings.stats_auto_sync === false && settings.stats && settings.stats.length >= 4) {
+          setStats(settings.stats);
+          return;
         }
+
+        // Compute live values dynamically
+        const rawTraders = liveStats.activeTraders || 50000;
+        const tradersVal = rawTraders >= 1000 ? Math.round(rawTraders / 1000) : rawTraders;
+        const tradersSuffix = rawTraders >= 1000 ? "K+" : "+";
+
+        const rawReviews = liveStats.reviews || 12000;
+        const reviewsVal = rawReviews >= 1000 ? Number((rawReviews / 1000).toFixed(rawReviews % 1000 === 0 ? 0 : 1)) : rawReviews;
+        const reviewsSuffix = rawReviews >= 1000 ? "K+" : "+";
+
+        const dynamicStats = [
+          {
+            value: tradersVal > 0 ? tradersVal : 50,
+            suffix: tradersSuffix,
+            label: "Active Traders",
+          },
+          {
+            value: liveStats.verifiedFirms > 0 ? liveStats.verifiedFirms : 40,
+            suffix: "+",
+            label: "Verified Firms",
+          },
+          {
+            value: liveStats.challenges > 0 ? liveStats.challenges : 150,
+            suffix: "+",
+            label: "Challenges",
+          },
+          {
+            value: reviewsVal > 0 ? reviewsVal : 12,
+            suffix: reviewsSuffix,
+            label: "Community Reviews",
+          },
+        ];
+
+        setStats(dynamicStats);
       } catch (err) {
-        console.error('Failed to load stats from Firestore:', err);
+        console.error("Failed to load dynamic stats:", err);
         setStats(DEFAULT_STATS);
       }
     }
