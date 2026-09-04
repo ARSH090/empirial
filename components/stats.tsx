@@ -8,10 +8,10 @@ import { motion } from "framer-motion";
 export default function Stats() {
   const [animate, setAnimate] = useState(false);
   const DEFAULT_STATS = [
-    { value: 50, suffix: "K+", label: "Active Traders" },
-    { value: 40, suffix: "+", label: "Verified Firms" },
-    { value: 150, suffix: "+", label: "Challenges" },
-    { value: 12, suffix: "K+", label: "Reviews" },
+    { value: 10, suffix: "+", label: "Active Traders" },
+    { value: 7, suffix: "+", label: "Verified Firms" },
+    { value: 42, suffix: "+", label: "Challenges" },
+    { value: 0, suffix: "+", label: "Community Reviews" },
   ];
 
   const [stats, setStats] = useState(DEFAULT_STATS);
@@ -29,33 +29,33 @@ export default function Stats() {
           return;
         }
 
-        // Compute live values dynamically
-        const rawTraders = liveStats.activeTraders || 50000;
+        // Compute live values dynamically from real backend state
+        const rawTraders = liveStats.activeTraders || 10;
         const tradersVal = rawTraders >= 1000 ? Math.round(rawTraders / 1000) : rawTraders;
         const tradersSuffix = rawTraders >= 1000 ? "K+" : "+";
 
-        const rawReviews = liveStats.reviews || 12000;
+        const rawReviews = liveStats.reviews || 0;
         const reviewsVal = rawReviews >= 1000 ? Number((rawReviews / 1000).toFixed(rawReviews % 1000 === 0 ? 0 : 1)) : rawReviews;
         const reviewsSuffix = rawReviews >= 1000 ? "K+" : "+";
 
         const dynamicStats = [
           {
-            value: tradersVal > 0 ? tradersVal : 50,
+            value: tradersVal,
             suffix: tradersSuffix,
             label: "Active Traders",
           },
           {
-            value: liveStats.verifiedFirms > 0 ? liveStats.verifiedFirms : 40,
+            value: liveStats.verifiedFirms || 7,
             suffix: "+",
             label: "Verified Firms",
           },
           {
-            value: liveStats.challenges > 0 ? liveStats.challenges : 150,
+            value: liveStats.challenges || 42,
             suffix: "+",
             label: "Challenges",
           },
           {
-            value: reviewsVal > 0 ? reviewsVal : 12,
+            value: reviewsVal,
             suffix: reviewsSuffix,
             label: "Community Reviews",
           },

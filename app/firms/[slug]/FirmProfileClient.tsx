@@ -79,6 +79,27 @@ export function FirmProfileClient({
   // Platforms lookup
   const platformKeys = (firm.platform_ids || []).filter((pid) => PLATFORM_DATA[pid]);
 
+  const getFirmBuyUrl = (firm: Firm): string => {
+    if (firm.buy_url && firm.buy_url.startsWith('http')) {
+      return firm.buy_url;
+    }
+    const slugToUrlMap: Record<string, string> = {
+      'nys': 'https://nyscapital.com?ref=empirial',
+      'nys-capital': 'https://nyscapital.com?ref=empirial',
+      'ck-capital': 'https://ckcapital.com?ref=empirial',
+      'alpha-capital': 'https://alphacapitalgroup.uk?ref=empirial',
+      'gtf': 'https://goatfundedtrader.com?ref=empirial',
+      'pipstone': 'https://pipstone.com?ref=empirial',
+      'shark-funded': 'https://sharkfunded.com?ref=empirial',
+      'sure-leverage': 'https://sureleveragefunding.com?ref=empirial',
+      'ftmo': 'https://ftmo.com?ref=empirial',
+      'funding-pips': 'https://fundingpips.com?ref=empirial',
+    };
+    return slugToUrlMap[firm.id] || slugToUrlMap[firm.slug] || `https://${firm.slug}.com?ref=empirial`;
+  };
+
+  const officialSiteUrl = getFirmBuyUrl(firm);
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
@@ -189,7 +210,7 @@ export function FirmProfileClient({
 
                 {/* Visit Official Site Button */}
                 <a
-                  href={firm.buy_url || 'https://discord.gg/ww4dkeeZdp'}
+                  href={officialSiteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-5 py-2.5 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer"

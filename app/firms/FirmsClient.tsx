@@ -141,6 +141,25 @@ export function FirmsClient() {
     }
   };
 
+  const getFirmBuyUrl = (firm: Firm): string => {
+    if (firm.buy_url && firm.buy_url.startsWith('http')) {
+      return firm.buy_url;
+    }
+    const slugToUrlMap: Record<string, string> = {
+      'nys': 'https://nyscapital.com?ref=empirial',
+      'nys-capital': 'https://nyscapital.com?ref=empirial',
+      'ck-capital': 'https://ckcapital.com?ref=empirial',
+      'alpha-capital': 'https://alphacapitalgroup.uk?ref=empirial',
+      'gtf': 'https://goatfundedtrader.com?ref=empirial',
+      'pipstone': 'https://pipstone.com?ref=empirial',
+      'shark-funded': 'https://sharkfunded.com?ref=empirial',
+      'sure-leverage': 'https://sureleveragefunding.com?ref=empirial',
+      'ftmo': 'https://ftmo.com?ref=empirial',
+      'funding-pips': 'https://fundingpips.com?ref=empirial',
+    };
+    return slugToUrlMap[firm.id] || slugToUrlMap[firm.slug] || `https://${firm.slug}.com?ref=empirial`;
+  };
+
   const handleBuyChallenge = (e: React.MouseEvent, firm: Firm) => {
     e.stopPropagation();
     if (!hasCopiedCodes[firm.id]) {
@@ -160,9 +179,10 @@ export function FirmsClient() {
       return;
     }
 
-    // Code copied: open buy url or partner discord
+    // Code copied: redirect user to main official Firm site in new tab
     if (typeof window !== 'undefined') {
-      window.open(firm.buy_url || 'https://discord.gg/ww4dkeeZdp', '_blank', 'noopener,noreferrer');
+      const targetUrl = getFirmBuyUrl(firm);
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
 

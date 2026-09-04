@@ -58,7 +58,7 @@ export function ReviewsClient() {
     async function loadReviewsData() {
       try {
         const [revs, fms] = await Promise.all([getReviews(), getFirms()]);
-        setReviewsList(revs.length > 0 ? revs : MOCK_REVIEWS);
+        setReviewsList(revs);
         setFirmsList(fms.length > 0 ? fms : MOCK_FIRMS);
       } catch (err) {
         console.error('Failed to load reviews dynamic data:', err);
@@ -71,6 +71,10 @@ export function ReviewsClient() {
     loadReviewsData();
   }, []);
 
+  // Filter States
+  const [starFilter, setStarFilter] = useState<'all' | '5' | '4.5' | '4'>('all');
+  const [sortBy, setSortBy] = useState<'rating' | 'reviews' | 'name'>('rating');
+
   // Toggle multi-select firm filter
   const toggleFirmFilter = (firmId: string) => {
     if (selectedFirmSlugs.includes(firmId)) {
@@ -82,6 +86,9 @@ export function ReviewsClient() {
 
   const handleClearFirmFilters = () => {
     setSelectedFirmSlugs([]);
+    setStarFilter('all');
+    setSortBy('rating');
+    setSearchQuery('');
   };
 
   // Open Review modal pre-selecting a specific firm (Requires Account)
@@ -194,10 +201,11 @@ export function ReviewsClient() {
     }>;
   }, [firmsList, reviewsList]);
 
-  // Filtered Firm Rows based on Search & Multi-select pills
+  // Filtered & Sorted Firm Rows based on Search, Star Filters, and Ranking
   const filteredRows = useMemo(() => {
-    return firmRows.filter((row) => {
+    let list = firmRows.filter((row) => {
       if (!row || !row.firm) return false;
+      
       // 1. Multi-Select Firm Pills Filter
       if (selectedFirmSlugs.length > 0) {
         const matchesFirm =
@@ -207,7 +215,16 @@ export function ReviewsClient() {
         if (!matchesFirm) return false;
       }
 
-      // 2. Search Query Filter
+      // 2. Star Rating Threshold Filter (4+ Stars, 4.5+ Stars, 5 Stars)
+      if (starFilter === '5') {
+        if (row.overallRank < 5) return false;
+      } else if (starFilter === '4.5') {
+        if (row.overallRank < 4.5) return false;
+      } else if (starFilter === '4') {
+        if (row.overallRank < 4) return false;
+      }
+
+      // 3. Search Query Filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = (row.firm.name || '').toLowerCase().includes(q);
@@ -227,7 +244,32 @@ export function ReviewsClient() {
 
       return true;
     });
-  }, [firmRows, selectedFirmSlugs, searchQuery]);
+
+    // 4. Ranking & Sorting
+    return list.sort((a, b) => {
+      if (sortBy === 'rating') {
+        // Highest star rating first
+        if (b.overallRank !== a.overallRank) {
+          return b.overallRank - a.overallRank;
+        }
+        // Tie-breaker: More number of reviews first
+        if (b.reviewCount !== a.reviewCount) {
+          return b.reviewCount - a.reviewCount;
+        }
+        return (b.firm.trust_score || 0) - (a.firm.trust_score || 0);
+      } else if (sortBy === 'reviews') {
+        // Most number of reviews first (descending)
+        if (b.reviewCount !== a.reviewCount) {
+          return b.reviewCount - a.reviewCount;
+        }
+        // Tie-breaker: Highest star rating
+        return b.overallRank - a.overallRank;
+      } else {
+        // Name A-Z
+        return (a.firm.name || '').localeCompare(b.firm.name || '');
+      }
+    });
+  }, [firmRows, selectedFirmSlugs, starFilter, searchQuery, sortBy]);
 
   // Helper to render stars (5 Golden Stars vs Green Stars for Overall Rank)
   const renderStars = (rating: number, isGreen = false) => {
@@ -358,6 +400,47 @@ export function ReviewsClient() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Rating & Sorting Controls (Star Filter: 5 Stars, 4.5+ Stars, 4+ Stars; Sort By: Highest Rating, Most Reviews) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
+            {/* Star Rating Filters */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="font-bold text-foreground mr-1">Star Filter:</span>
+              {[
+                { id: 'all', label: 'All Ratings' },
+                { id: '5', label: '5 Stars' },
+                { id: '4.5', label: '4.5+ Stars' },
+                { id: '4', label: '4+ Stars' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setStarFilter(f.id as any)}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    starFilter === f.id
+                      ? 'border-black dark:border-white bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                      : 'border-zinc-200/80 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort By Select Dropdown */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-bold text-foreground shrink-0">Sort By:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-black dark:focus:border-white cursor-pointer"
+              >
+                <option value="rating">Highest Rating (Stars + Reviews Tie-breaker)</option>
+                <option value="reviews">No. of Reviews (Highest 1st, Descending)</option>
+                <option value="name">Firm Name (A-Z)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -590,97 +673,118 @@ export function ReviewsClient() {
                                   </button>
                                 </div>
 
-                                {/* Reviews Grid */}
+                                {/* Reviews Preview Grid (Showing Top 2 Best Reviews) */}
                                 {row.reviews.length > 0 ? (
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {row.reviews.map((rev) => {
-                                      // Calculate genuine average from the review's actual 4 ratings
-                                      const reviewAverage = Number(
-                                        (
-                                          (rev.trading_conditions +
-                                            rev.customer_care +
-                                            rev.user_friendliness +
-                                            rev.payout_process) /
-                                          4
-                                        ).toFixed(1)
-                                      );
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {[...row.reviews]
+                                        .sort((a, b) => (b.overall_rating || 5) - (a.overall_rating || 5) || (b.upvotes || 0) - (a.upvotes || 0))
+                                        .slice(0, 2)
+                                        .map((rev) => {
+                                          const reviewAverage = Number(
+                                            (
+                                              (rev.trading_conditions +
+                                                rev.customer_care +
+                                                rev.user_friendliness +
+                                                rev.payout_process) /
+                                              4
+                                            ).toFixed(1)
+                                          );
 
-                                      return (
-                                        <div
-                                          key={rev.id}
-                                          className="p-4 rounded-2xl bg-white/70 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-2xs space-y-3 flex flex-col justify-between"
-                                        >
-                                          <div className="space-y-2">
-                                            {/* Star Header with genuine calculated stars & Date */}
-                                            <div className="flex items-center justify-between">
-                                              <div className="flex items-center gap-1.5">
-                                                {renderStars(reviewAverage, false)}
-                                                <span className="text-xs font-bold text-foreground">
-                                                  {reviewAverage.toFixed(1)}
-                                                </span>
-                                              </div>
-                                              <span className="text-[10px] text-muted-foreground font-mono">
-                                                {rev.created_at}
-                                              </span>
-                                            </div>
-
-                                            {/* Title & Body */}
-                                            <h4 className="text-xs sm:text-sm font-bold text-foreground leading-snug">
-                                              "{rev.title}"
-                                            </h4>
-                                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                              {rev.body}
-                                            </p>
-                                          </div>
-
-                                          {/* Scorecard with Stars & Author */}
-                                          <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[10px]">
-                                              <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
-                                                <span className="text-muted-foreground">Trading:</span>
-                                                <span className="inline-flex items-center gap-1 font-bold text-foreground">
-                                                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
-                                                  <span>{rev.trading_conditions}/5</span>
-                                                </span>
-                                              </div>
-                                              <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
-                                                <span className="text-muted-foreground">Support:</span>
-                                                <span className="inline-flex items-center gap-1 font-bold text-foreground">
-                                                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
-                                                  <span>{rev.customer_care}/5</span>
-                                                </span>
-                                              </div>
-                                              <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
-                                                <span className="text-muted-foreground">Platform:</span>
-                                                <span className="inline-flex items-center gap-1 font-bold text-foreground">
-                                                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
-                                                  <span>{rev.user_friendliness}/5</span>
-                                                </span>
-                                              </div>
-                                              <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
-                                                <span className="text-muted-foreground">Payout:</span>
-                                                <span className="inline-flex items-center gap-1 font-bold text-foreground">
-                                                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
-                                                  <span>{rev.payout_process}/5</span>
-                                                </span>
-                                              </div>
-                                            </div>
-
-                                            <div className="flex items-center justify-between pt-1 text-xs">
-                                              <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-[10px] text-foreground">
-                                                  {rev.full_name.substring(0, 2).toUpperCase()}
+                                          return (
+                                            <div
+                                              key={rev.id}
+                                              className="p-4 rounded-2xl bg-white/70 dark:bg-card backdrop-blur-md border border-zinc-200/80 dark:border-border shadow-2xs space-y-3 flex flex-col justify-between"
+                                            >
+                                              <div className="space-y-2">
+                                                {/* Star Header */}
+                                                <div className="flex items-center justify-between">
+                                                  <div className="flex items-center gap-1.5">
+                                                    {renderStars(reviewAverage, false)}
+                                                    <span className="text-xs font-bold text-foreground">
+                                                      {reviewAverage.toFixed(1)}
+                                                    </span>
+                                                  </div>
+                                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                                    {rev.created_at}
+                                                  </span>
                                                 </div>
-                                                <span className="font-semibold text-foreground text-xs">{rev.full_name}</span>
+
+                                                {/* Title & Body */}
+                                                <h4 className="text-xs sm:text-sm font-bold text-foreground leading-snug">
+                                                  "{rev.title}"
+                                                </h4>
+                                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                                  {rev.body}
+                                                </p>
                                               </div>
-                                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                                                <Check className="w-3 h-3" /> Verified Trader
-                                              </span>
+
+                                              {/* Scorecard with Stars & Author */}
+                                              <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[10px]">
+                                                  <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Trading:</span>
+                                                    <span className="inline-flex items-center gap-1 font-bold text-foreground">
+                                                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
+                                                      <span>{rev.trading_conditions}/5</span>
+                                                    </span>
+                                                  </div>
+                                                  <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Support:</span>
+                                                    <span className="inline-flex items-center gap-1 font-bold text-foreground">
+                                                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
+                                                      <span>{rev.customer_care}/5</span>
+                                                    </span>
+                                                  </div>
+                                                  <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Platform:</span>
+                                                    <span className="inline-flex items-center gap-1 font-bold text-foreground">
+                                                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
+                                                      <span>{rev.user_friendliness}/5</span>
+                                                    </span>
+                                                  </div>
+                                                  <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Payout:</span>
+                                                    <span className="inline-flex items-center gap-1 font-bold text-foreground">
+                                                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400 shrink-0" />
+                                                      <span>{rev.payout_process}/5</span>
+                                                    </span>
+                                                  </div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between pt-1 text-xs">
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-[10px] text-foreground">
+                                                      {rev.full_name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <span className="font-semibold text-foreground text-xs">{rev.full_name}</span>
+                                                  </div>
+                                                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                                                    <Check className="w-3 h-3" /> Verified Trader
+                                                  </span>
+                                                </div>
+                                              </div>
                                             </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                                          );
+                                        })}
+                                    </div>
+
+                                    {/* Action to view all reviews if total > 2 */}
+                                    {row.reviews.length > 2 && (
+                                      <div className="text-center pt-2">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setViewAllFirmId(firm.id);
+                                          }}
+                                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-card text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                                        >
+                                          <span>View All {row.reviews.length} Reviews for {firm.name}</span>
+                                          <ExternalLink className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="text-center py-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-2">

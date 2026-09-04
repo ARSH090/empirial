@@ -732,10 +732,10 @@ export async function getLivePlatformStats(): Promise<{
 }> {
   if (!db) {
     return {
-      activeTraders: 50000,
-      verifiedFirms: 40,
-      challenges: 150,
-      reviews: 12000,
+      activeTraders: 10,
+      verifiedFirms: 7,
+      challenges: 42,
+      reviews: 0,
     };
   }
   try {
@@ -751,30 +751,19 @@ export async function getLivePlatformStats(): Promise<{
     const challsCount = challsSnap.size;
     const postedRevsCount = revsSnap.size;
 
-    // Calculate sum of review_count across all firms
-    let firmReviewsSum = 0;
-    firmsSnap.docs.forEach((d: any) => {
-      const data = d.data();
-      if (data.review_count && typeof data.review_count === 'number') {
-        firmReviewsSum += data.review_count;
-      }
-    });
-
-    const totalReviewsAggregate = firmReviewsSum + postedRevsCount;
-
     return {
-      activeTraders: usersCount > 0 ? usersCount : 50000,
-      verifiedFirms: firmsCount > 0 ? firmsCount : 40,
-      challenges: challsCount > 0 ? challsCount : 150,
-      reviews: totalReviewsAggregate > 0 ? totalReviewsAggregate : 12000,
+      activeTraders: usersCount > 0 ? usersCount : 10,
+      verifiedFirms: firmsCount > 0 ? firmsCount : 7,
+      challenges: challsCount > 0 ? challsCount : 42,
+      reviews: postedRevsCount,
     };
   } catch (err) {
     console.error('Failed to get live platform stats:', err);
     return {
-      activeTraders: 50000,
-      verifiedFirms: 40,
-      challenges: 150,
-      reviews: 12000,
+      activeTraders: 10,
+      verifiedFirms: 7,
+      challenges: 42,
+      reviews: 0,
     };
   }
 }

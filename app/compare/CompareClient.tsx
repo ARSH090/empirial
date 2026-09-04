@@ -575,8 +575,9 @@ export function CompareClient() {
                     </th>
                     {(compareMode === 'firms' ? selectedFirms : selectedChallenges).map((item, idx) => {
                       const slotColor = SLOT_COLORS[idx % SLOT_COLORS.length];
-                      const firmName = 'name' in item && 'type' in item ? (item as Firm).name : (item as Challenge).firm_name;
-                      const firmLogo = 'logo_url' in item ? (item as Firm).logo_url : ((item as Challenge).firm_logo || '/logos/nys.png');
+                      const firmName = (item as any).name || (item as any).firm_name || 'Prop Firm';
+                      const safeFirmNameLower = firmName.toLowerCase();
+                      const firmLogo = (item as any).logo_url || (item as any).firm_logo || '/logos/nys.png';
 
                       const matchedFirm = (dbFirms.length > 0 ? dbFirms : MOCK_FIRMS).find(
                         (f: Firm) =>
@@ -584,14 +585,14 @@ export function CompareClient() {
                           f.id === item.id ||
                           f.slug === (item as any).firm_slug ||
                           f.slug === (item as any).slug ||
-                          (f.name || '').toLowerCase() === firmName.toLowerCase()
+                          (f.name || '').toLowerCase() === safeFirmNameLower
                       ) || MOCK_FIRMS.find(
                         (f: Firm) =>
                           f.id === (item as any).firm_id ||
                           f.id === item.id ||
                           f.slug === (item as any).firm_slug ||
                           f.slug === (item as any).slug ||
-                          (f.name || '').toLowerCase() === firmName.toLowerCase()
+                          (f.name || '').toLowerCase() === safeFirmNameLower
                       ) || {
                         id: item.id,
                         name: firmName,

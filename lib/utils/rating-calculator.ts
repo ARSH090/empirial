@@ -19,20 +19,17 @@ export interface FirmMetrics {
 export function calculateFirmMetrics(firm: Firm, allReviews: Review[]): FirmMetrics {
   if (!firm) {
     return {
-      firm: { id: '', name: 'Firm', slug: 'firm', rating: 4.8, review_count: 125 } as Firm,
-      rating: 4.8,
-      reviewCount: 125,
-      tradingConditions: 4.8,
-      customerCare: 4.8,
-      payoutProcess: 4.8,
-      userFriendliness: 4.8,
-      overallRank: 4.8,
+      firm: { id: '', name: 'Firm', slug: 'firm', rating: 0, review_count: 0 } as Firm,
+      rating: 0,
+      reviewCount: 0,
+      tradingConditions: 0,
+      customerCare: 0,
+      payoutProcess: 0,
+      userFriendliness: 0,
+      overallRank: 0,
       reviews: [],
     };
   }
-
-  const baseRating = Number(firm.rating || 4.8);
-  const baseCount = Number(firm.review_count || 125);
 
   // Match reviews for this firm by firm_id, slug, or firm_name
   const matchingReviews = (allReviews || []).filter((r) => {
@@ -53,7 +50,6 @@ export function calculateFirmMetrics(firm: Firm, allReviews: Review[]): FirmMetr
   });
 
   const userReviewCount = matchingReviews.length;
-  const totalCount = baseCount + userReviewCount;
 
   if (userReviewCount > 0) {
     const userTradingSum = matchingReviews.reduce((sum, r) => sum + (r.trading_conditions || 5), 0);
@@ -61,76 +57,50 @@ export function calculateFirmMetrics(firm: Firm, allReviews: Review[]): FirmMetr
     const userPayoutSum = matchingReviews.reduce((sum, r) => sum + (r.payout_process || 5), 0);
     const userUsabilitySum = matchingReviews.reduce((sum, r) => sum + (r.user_friendliness || 5), 0);
 
-    const userAvgTrading = userTradingSum / userReviewCount;
-    const userAvgCare = userCareSum / userReviewCount;
-    const userAvgPayout = userPayoutSum / userReviewCount;
-    const userAvgUsability = userUsabilitySum / userReviewCount;
-
-    const tradingConditions = baseCount > 0
-      ? Number(((baseRating * baseCount + userTradingSum) / totalCount).toFixed(1))
-      : Number(userAvgTrading.toFixed(1));
-
-    const customerCare = baseCount > 0
-      ? Number((((baseRating - 0.1) * baseCount + userCareSum) / totalCount).toFixed(1))
-      : Number(userAvgCare.toFixed(1));
-
-    const payoutProcess = baseCount > 0
-      ? Number(((baseRating * baseCount + userPayoutSum) / totalCount).toFixed(1))
-      : Number(userAvgPayout.toFixed(1));
-
-    const userFriendliness = baseCount > 0
-      ? Number((((baseRating + 0.1) * baseCount + userUsabilitySum) / totalCount).toFixed(1))
-      : Number(userAvgUsability.toFixed(1));
+    const tradingConditions = Number((userTradingSum / userReviewCount).toFixed(1));
+    const customerCare = Number((userCareSum / userReviewCount).toFixed(1));
+    const payoutProcess = Number((userPayoutSum / userReviewCount).toFixed(1));
+    const userFriendliness = Number((userUsabilitySum / userReviewCount).toFixed(1));
 
     const userRatingsSum = matchingReviews.reduce((sum, r) => {
       const avg = r.overall_rating || ((r.trading_conditions + r.customer_care + r.payout_process + r.user_friendliness) / 4);
       return sum + avg;
     }, 0);
 
-    const overallRank = baseCount > 0
-      ? Number(((baseRating * baseCount + userRatingsSum) / totalCount).toFixed(1))
-      : Number((userRatingsSum / userReviewCount).toFixed(1));
-
-    const finalRating = Math.min(5, Math.max(1, overallRank));
+    const overallRank = Number((userRatingsSum / userReviewCount).toFixed(1));
+    const finalRating = Math.min(5, Math.max(0, overallRank));
 
     return {
       firm: {
         ...firm,
         rating: finalRating,
-        review_count: totalCount,
+        review_count: userReviewCount,
       },
       rating: finalRating,
-      reviewCount: totalCount,
-      tradingConditions: Math.min(5, Math.max(1, tradingConditions)),
-      customerCare: Math.min(5, Math.max(1, customerCare)),
-      payoutProcess: Math.min(5, Math.max(1, payoutProcess)),
-      userFriendliness: Math.min(5, Math.max(1, userFriendliness)),
+      reviewCount: userReviewCount,
+      tradingConditions: Math.min(5, Math.max(0, tradingConditions)),
+      customerCare: Math.min(5, Math.max(0, customerCare)),
+      payoutProcess: Math.min(5, Math.max(0, payoutProcess)),
+      userFriendliness: Math.min(5, Math.max(0, userFriendliness)),
       overallRank: finalRating,
       reviews: matchingReviews,
     };
   }
 
-  // Fallback to baseline metrics if no user reviews submitted yet
-  const rating = Number(baseRating.toFixed(1));
-  const reviewCount = baseCount;
-  const tradingConditions = Math.min(5, Number((rating + 0.1).toFixed(1)));
-  const customerCare = Math.min(5, Math.max(1, Number((rating - 0.1).toFixed(1))));
-  const payoutProcess = Number(rating.toFixed(1));
-  const userFriendliness = Number(rating.toFixed(1));
-
+  // Zero metrics when no user reviews have been submitted for this firm
   return {
     firm: {
       ...firm,
-      rating,
-      review_count: reviewCount,
+      rating: 0,
+      review_count: 0,
     },
-    rating,
-    reviewCount,
-    tradingConditions,
-    customerCare,
-    payoutProcess,
-    userFriendliness,
-    overallRank: rating,
+    rating: 0,
+    reviewCount: 0,
+    tradingConditions: 0,
+    customerCare: 0,
+    payoutProcess: 0,
+    userFriendliness: 0,
+    overallRank: 0,
     reviews: [],
   };
 }

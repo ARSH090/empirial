@@ -18,7 +18,7 @@ export function RatingBadge({
   size = 'sm',
   className = '',
 }: RatingBadgeProps) {
-  const formattedRating = (rating || 4.8).toFixed(1);
+  const formattedRating = rating !== undefined && rating !== null ? Number(rating).toFixed(1) : '0.0';
   const formattedCount = reviewCount !== undefined && reviewCount !== null ? reviewCount.toLocaleString('en-US') : null;
 
   return (
