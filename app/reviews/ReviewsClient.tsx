@@ -114,6 +114,9 @@ export function ReviewsClient() {
     const firmObj = listFirms.find((f) => f.id === selectedModalFirmId || f.slug === selectedModalFirmId);
     const overall = Math.round((tradingRating + customerCareRating + payoutRating + usabilityRating) / 4);
 
+    const currentUser = getStoredUser();
+    const isVerified = currentUser?.is_verified === true;
+
     const newRev: Omit<Review, 'id' | 'created_at'> = {
       firm_id: selectedModalFirmId,
       firm_name: firmObj?.name || 'Verified Firm',
@@ -126,7 +129,7 @@ export function ReviewsClient() {
       customer_care: customerCareRating,
       user_friendliness: usabilityRating,
       payout_process: payoutRating,
-      is_verified_trader: true,
+      is_verified_trader: isVerified,
       upvotes: 1,
     };
 
