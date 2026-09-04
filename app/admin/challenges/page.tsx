@@ -185,6 +185,12 @@ export default function AdminChallengesPage() {
     }
   };
 
+  const parseNum = (val: any, fallback: number): number => {
+    if (val === undefined || val === null || val === '') return fallback;
+    const num = typeof val === 'number' ? val : Number(val);
+    return isNaN(num) ? fallback : num;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.firm_id) {
@@ -193,22 +199,24 @@ export default function AdminChallengesPage() {
     }
 
     const selectedFirm = firms.find((f) => f.id === formData.firm_id);
+    const stepsVal = parseNum(formData.steps, 2);
+
     const payload: Omit<Challenge, 'id'> = {
       firm_id: formData.firm_id,
       firm_name: selectedFirm?.name || formData.firm_name || 'Prop Firm',
       firm_slug: selectedFirm?.slug || formData.firm_slug || 'prop-firm',
       firm_logo: selectedFirm?.logo_url || formData.firm_logo || '/logos/nys.png',
       name: formData.name.trim(),
-      account_size: Number(formData.account_size) || 100000,
-      steps: Number(formData.steps) ?? 2,
-      price: Number(formData.price) || 499,
-      original_price: Number(formData.original_price) || 599,
-      profit_split_pct: Number(formData.profit_split_pct) || 85,
-      daily_loss_limit_pct: Number(formData.daily_loss_limit_pct) || 5,
-      max_loss_limit_pct: Number(formData.max_loss_limit_pct) || 10,
-      profit_target_pct: Number(formData.profit_target_pct) || 8,
-      phase_2_target_pct: Number(formData.phase_2_target_pct) || 5,
-      min_trading_days: Number(formData.min_trading_days) ?? 0,
+      account_size: parseNum(formData.account_size, 100000),
+      steps: stepsVal,
+      price: parseNum(formData.price, 499),
+      original_price: parseNum(formData.original_price, 599),
+      profit_split_pct: parseNum(formData.profit_split_pct, 85),
+      daily_loss_limit_pct: parseNum(formData.daily_loss_limit_pct, 5),
+      max_loss_limit_pct: parseNum(formData.max_loss_limit_pct, 10),
+      profit_target_pct: parseNum(formData.profit_target_pct, 8),
+      phase_2_target_pct: stepsVal < 2 ? 0 : parseNum(formData.phase_2_target_pct, 0),
+      min_trading_days: parseNum(formData.min_trading_days, 0),
       max_trading_days: formData.max_trading_days || 'Unlimited',
       payout_frequency: formData.payout_frequency || 'Bi-Weekly / 14 Days',
       avg_payout: formData.avg_payout || '$5,400',
@@ -216,12 +224,12 @@ export default function AdminChallengesPage() {
       refundable_fee: !!formData.refundable_fee,
       buy_url: formData.buy_url || 'https://discord.gg/ww4dkeeZdp',
       coupon_code: (formData.coupon_code || 'EMPIRE').toUpperCase(),
-      discount_pct: Number(formData.discount_pct) || 20,
+      discount_pct: parseNum(formData.discount_pct, 20),
       is_featured: !!formData.is_featured,
       is_best_seller: !!formData.is_best_seller,
       category: formData.category || 'forex',
-      rating: Number(formData.rating) || selectedFirm?.rating || 4.9,
-      review_count: Number(formData.review_count) || selectedFirm?.review_count || 1200,
+      rating: parseNum(formData.rating, selectedFirm?.rating || 4.9),
+      review_count: parseNum(formData.review_count, selectedFirm?.review_count || 1200),
       consistency_rule: formData.consistency_rule || 'No Consistency Rule',
       news_trading: formData.news_trading || 'YES / Allowed',
       overnight_weekend: formData.overnight_weekend || 'YES | YES',
@@ -589,7 +597,7 @@ export default function AdminChallengesPage() {
                   type="number"
                   step="0.5"
                   value={formData.profit_target_pct ?? 8}
-                  onChange={(e) => setFormData({ ...formData, profit_target_pct: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, profit_target_pct: e.target.value === '' ? '' as any : parseFloat(e.target.value) })}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
@@ -599,8 +607,8 @@ export default function AdminChallengesPage() {
                 <input
                   type="number"
                   step="0.5"
-                  value={formData.phase_2_target_pct ?? 5}
-                  onChange={(e) => setFormData({ ...formData, phase_2_target_pct: parseFloat(e.target.value) || 0 })}
+                  value={formData.phase_2_target_pct ?? 0}
+                  onChange={(e) => setFormData({ ...formData, phase_2_target_pct: e.target.value === '' ? '' as any : parseFloat(e.target.value) })}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
@@ -612,7 +620,7 @@ export default function AdminChallengesPage() {
                   type="number"
                   step="0.5"
                   value={formData.daily_loss_limit_pct ?? 5}
-                  onChange={(e) => setFormData({ ...formData, daily_loss_limit_pct: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, daily_loss_limit_pct: e.target.value === '' ? '' as any : parseFloat(e.target.value) })}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
@@ -623,7 +631,7 @@ export default function AdminChallengesPage() {
                   type="number"
                   step="0.5"
                   value={formData.max_loss_limit_pct ?? 10}
-                  onChange={(e) => setFormData({ ...formData, max_loss_limit_pct: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, max_loss_limit_pct: e.target.value === '' ? '' as any : parseFloat(e.target.value) })}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>
@@ -645,10 +653,10 @@ export default function AdminChallengesPage() {
                 <label className="font-semibold text-foreground">Profit Split (%)</label>
                 <input
                   type="number"
-                  min="50"
+                  min="0"
                   max="100"
                   value={formData.profit_split_pct ?? 85}
-                  onChange={(e) => setFormData({ ...formData, profit_split_pct: parseInt(e.target.value) || 80 })}
+                  onChange={(e) => setFormData({ ...formData, profit_split_pct: e.target.value === '' ? '' as any : parseInt(e.target.value) })}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-foreground"
                 />
               </div>

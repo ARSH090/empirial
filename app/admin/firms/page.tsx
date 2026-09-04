@@ -258,6 +258,12 @@ export default function AdminFirmsPage() {
     }
   };
 
+  const parseNum = (val: any, fallback: number): number => {
+    if (val === undefined || val === null || val === '') return fallback;
+    const num = typeof val === 'number' ? val : Number(val);
+    return isNaN(num) ? fallback : num;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) {
@@ -272,14 +278,14 @@ export default function AdminFirmsPage() {
       slug,
       type: formData.type || 'prop_firm',
       logo_url: formData.logo_url || '/logos/nys.png',
-      rating: Number(formData.rating) || 4.8,
-      review_count: Number(formData.review_count) || 125,
+      rating: parseNum(formData.rating, 4.8),
+      review_count: parseNum(formData.review_count, 125),
       max_allocation: formData.max_allocation || '$2,000,000',
       profit_split_custom: formData.profit_split_custom || 'Up to 90%',
       payout_custom: formData.payout_custom || 'Bi-Weekly / 14 Days',
       discount_label_custom: formData.discount_label_custom || '20% OFF',
       coupon_code_custom: (formData.coupon_code_custom || 'EMPIRE').toUpperCase(),
-      discount_pct: Number(formData.discount_pct) || 20,
+      discount_pct: parseNum(formData.discount_pct, 20),
       badge_custom: formData.badge_custom || '',
       platforms: formData.platforms || 'MT5, cTrader',
       platform_ids: formData.platform_ids || ['mt5', 'ctrader'],
@@ -287,8 +293,8 @@ export default function AdminFirmsPage() {
       is_featured: !!formData.is_featured,
       is_verified: !!formData.is_verified,
       is_popular: !!formData.is_popular,
-      trust_score: Number(formData.trust_score) || 95,
-      founded_year: Number(formData.founded_year) || 2024,
+      trust_score: parseNum(formData.trust_score, 95),
+      founded_year: parseNum(formData.founded_year, 2024),
       headquarters: formData.headquarters || 'Dubai, UAE',
       country: formData.country || 'UAE',
       years_working: formData.years_working || (formData.founded_year ? `Est. ${formData.founded_year}` : 'Est. 2024'),
@@ -296,10 +302,10 @@ export default function AdminFirmsPage() {
       avg_payout_time: formData.avg_payout_time || '8-24 Hours',
       models: formData.models || ['1-Step Challenge', '2-Step Evaluation', 'Instant Model'],
       buy_url: formData.buy_url || 'https://discord.gg/ww4dkeeZdp',
-      max_loss_pct: Number(formData.max_loss_pct) || 10,
-      daily_loss_pct: Number(formData.daily_loss_pct) || 5,
-      profit_target_pct: Number(formData.profit_target_pct) || 8,
-      min_price: Number(formData.min_price) || 99,
+      max_loss_pct: parseNum(formData.max_loss_pct, 10),
+      daily_loss_pct: parseNum(formData.daily_loss_pct, 5),
+      profit_target_pct: parseNum(formData.profit_target_pct, 8),
+      min_price: parseNum(formData.min_price, 99),
       consistency_rules_content: formData.consistency_rules_content || 'No Consistency Rule',
       firm_rules_content: formData.firm_rules_content || '0 Days (No Min)',
       description: formData.description || 'Audited prop firm.',

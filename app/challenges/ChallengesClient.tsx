@@ -531,10 +531,12 @@ export function ChallengesClient() {
 
                     const codeText = ch.coupon_code || 'EMPIRE';
                     const originalPrice = ch.original_price || Math.round(ch.price * 1.25);
-                    const targetStr = ch.phase_2_target_pct
-                      ? `${ch.profit_target_pct}% | ${ch.phase_2_target_pct}%`
-                      : `${ch.profit_target_pct}%`;
-                    const ddStr = `${ch.daily_loss_limit_pct === 0 ? 'None' : ch.daily_loss_limit_pct + '%'} | ${ch.max_loss_limit_pct}%`;
+                    const targetStr = (ch.steps === 2 && ch.phase_2_target_pct && ch.phase_2_target_pct > 0)
+                      ? `${ch.profit_target_pct ?? 0}% | ${ch.phase_2_target_pct}%`
+                      : ch.steps === 0
+                      ? 'None (Instant)'
+                      : `${ch.profit_target_pct ?? 0}%`;
+                    const ddStr = `${(ch.daily_loss_limit_pct === 0 || !ch.daily_loss_limit_pct) ? 'None' : ch.daily_loss_limit_pct + '%'} | ${ch.max_loss_limit_pct ?? 10}%`;
 
                     // Authentically resolved firm logo path and live ratings
                     const matchedFirm = firmOptions.find(
