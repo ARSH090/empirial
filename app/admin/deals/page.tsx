@@ -27,6 +27,13 @@ import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Firm, Deal } from '@/lib/types';
 import { getDeals, getFirms, createDeal, updateDeal, deleteDeal } from '@/lib/firebase/services';
 import {
+  getStoredDeals,
+  addStoredDeal,
+  updateStoredDeal,
+  deleteStoredDeal,
+  sortDeals,
+} from '@/lib/utils/deals-store';
+import {
   OfferPosterConfig,
   getStoredOfferPoster,
   saveOfferPoster,
@@ -109,9 +116,9 @@ export default function AdminDealsPage() {
         setFirms(loadedFirms);
 
         if (dealsData && dealsData.length > 0) {
-          setDeals(dealsData);
+          setDeals(sortDeals(dealsData));
         } else {
-          setDeals(MOCK_DEALS);
+          setDeals(getStoredDeals());
         }
 
         // Initialize default form firm choice
@@ -128,13 +135,23 @@ export default function AdminDealsPage() {
         }
       } catch (err) {
         console.error('Failed to load offers data:', err);
-        setDeals(MOCK_DEALS);
+        setDeals(getStoredDeals());
         setFirms(MOCK_FIRMS);
       } finally {
         setLoading(false);
       }
     }
     loadData();
+
+    const handleDealsChange = (e: any) => {
+      if (e.detail) {
+        setDeals(sortDeals(e.detail));
+      }
+    };
+    window.addEventListener('empirial_deals_changed', handleDealsChange);
+    return () => {
+      window.removeEventListener('empirial_deals_changed', handleDealsChange);
+    };
   }, []);
 
   // Handle Firm Dropdown Selection (Requirement 2: Auto-loads Firm Name and LOGO)
@@ -202,7 +219,8 @@ export default function AdminDealsPage() {
     e.preventDefault();
     if (!formData.code || !formData.firm_id) return;
 
-    const newDeal: Omit<Deal, 'id'> = {
+    const createdAt = new Date().toISOString();
+    const newDealData: Omit<Deal, 'id'> = {
       firm_id: formData.firm_id,
       firm_name: formData.firm_name,
       firm_slug: formData.firm_slug,
@@ -218,16 +236,19 @@ export default function AdminDealsPage() {
       clicks_count: 0,
       is_featured: formData.is_featured,
       is_verified: formData.is_verified,
+      created_at: createdAt,
     };
 
+    let generatedId = 'deal-' + Date.now();
     try {
-      const id = await createDeal(newDeal);
-      setDeals([{ id, ...newDeal }, ...deals]);
+      generatedId = await createDeal(newDealData);
     } catch (err) {
-      console.error('Failed to create deal:', err);
-      setDeals([{ id: 'deal-' + Date.now(), ...newDeal }, ...deals]);
+      console.error('Failed to create deal in Firestore, saving locally:', err);
     }
 
+    const fullDeal: Deal = { id: generatedId, ...newDealData };
+    const updatedDeals = addStoredDeal(fullDeal);
+    setDeals(updatedDeals);
     setIsAdding(false);
   };
 
@@ -251,28 +272,29 @@ export default function AdminDealsPage() {
       expires_at: editingDeal.expires_at,
       is_featured: editingDeal.is_featured,
       is_verified: editingDeal.is_verified,
+      updated_at: new Date().toISOString(),
     };
 
     try {
       await updateDeal(editingDeal.id, updatedData);
-      setDeals(deals.map((d) => (d.id === editingDeal.id ? { ...d, ...updatedData } : d)));
-      setEditingDeal(null);
     } catch (err) {
-      console.error('Failed to update deal:', err);
-      setDeals(deals.map((d) => (d.id === editingDeal.id ? { ...d, ...updatedData } : d)));
-      setEditingDeal(null);
+      console.error('Failed to update deal in Firestore:', err);
     }
+
+    const updatedDeals = updateStoredDeal(editingDeal.id, updatedData);
+    setDeals(updatedDeals);
+    setEditingDeal(null);
   };
 
   // Delete Deal
   const handleDeleteDeal = async (id: string) => {
     try {
       await deleteDeal(id);
-      setDeals(deals.filter((d) => d.id !== id));
     } catch (err) {
-      console.error('Failed to delete deal:', err);
-      setDeals(deals.filter((d) => d.id !== id));
+      console.error('Failed to delete deal from Firestore:', err);
     } finally {
+      const updatedDeals = deleteStoredDeal(id);
+      setDeals(updatedDeals);
       setDeleteConfirmId(null);
     }
   };

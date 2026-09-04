@@ -1,5 +1,6 @@
 import { db, storage } from './config';
 import type { UserProfile } from '../utils/auth-store';
+import { getStoredDeals, saveStoredDeals, sortDeals } from '../utils/deals-store';
 import { 
   collection, 
   doc, 
@@ -243,10 +244,32 @@ export async function deleteChallenge(id: string): Promise<void> {
 // DISCOUNT DEALS
 // ==========================================
 export async function getDeals(): Promise<Deal[]> {
-  if (!db) return [];
-  const colRef = collection(db, 'deals');
-  const snap = await getDocs(query(colRef, orderBy('discount_pct', 'desc')));
-  return mapSnapshot<Deal>(snap);
+  const localDeals = typeof window !== 'undefined' ? getStoredDeals() : [];
+  if (!db) return localDeals;
+  try {
+    const colRef = collection(db, 'deals');
+    const snap = await getDocs(colRef);
+    const firestoreDeals = mapSnapshot<Deal>(snap);
+    if (!firestoreDeals || firestoreDeals.length === 0) {
+      return localDeals;
+    }
+    // Local deals take priority (containing recent admin additions/edits)
+    const localMap = new Map(localDeals.map((d) => [d.id, d]));
+    const merged = [...localDeals];
+    for (const fd of firestoreDeals) {
+      if (!localMap.has(fd.id)) {
+        merged.push(fd);
+      }
+    }
+    const result = sortDeals(merged);
+    if (typeof window !== 'undefined') {
+      saveStoredDeals(result);
+    }
+    return result;
+  } catch (err) {
+    console.error('Error fetching deals from Firestore:', err);
+    return localDeals;
+  }
 }
 
 export async function createDeal(deal: Omit<Deal, 'id'>): Promise<string> {

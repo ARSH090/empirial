@@ -49,11 +49,11 @@ export function HomeChallenges() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-elevation-card border border-white/10 flex items-center justify-center text-sm font-black text-white group-hover:text-cyan-400 transition-colors">
-                    {challenge.firm_name.substring(0, 3).toUpperCase()}
+                    {(challenge.firm_name || challenge.firm_slug || 'FRM').substring(0, 3).toUpperCase()}
                   </div>
                   <div>
                     <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
-                      {challenge.firm_name}
+                      {challenge.firm_name || 'PROP FIRM'}
                     </span>
                     <h3 className="text-sm font-bold text-white leading-snug line-clamp-1">
                       {challenge.name}

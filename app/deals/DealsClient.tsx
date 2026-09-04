@@ -22,6 +22,7 @@ import { MOCK_DEALS } from '@/lib/data/deals-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
 import { Deal, Firm, Review } from '@/lib/types';
 import { getDeals, getFirms, getReviews } from '@/lib/firebase/services';
+import { getStoredDeals, sortDeals } from '@/lib/utils/deals-store';
 import { calculateFirmMetrics } from '@/lib/utils/rating-calculator';
 import { useEffect } from 'react';
 import {
@@ -55,24 +56,38 @@ export function DealsClient() {
   const [warningDealId, setWarningDealId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Client-side hydration sync with local storage
+    const currentLocal = getStoredDeals();
+    if (currentLocal && currentLocal.length > 0) {
+      setDeals(currentLocal);
+    }
+
     async function loadData() {
       try {
         const [dealsData, firmsData, reviewsData] = await Promise.all([
-          getDeals().catch(() => []),
+          getDeals().catch(() => getStoredDeals()),
           getFirms().catch(() => []),
           getReviews().catch(() => []),
         ]);
 
-        if (dealsData && dealsData.length > 0) setDeals(dealsData);
+        if (dealsData && dealsData.length > 0) setDeals(sortDeals(dealsData));
         if (firmsData && firmsData.length > 0) setFirmsList(firmsData);
         if (reviewsData && reviewsData.length > 0) setAllReviews(reviewsData);
       } catch (err) {
         console.error('Failed to load deals data:', err);
-      } finally {
-        setLoading(false);
       }
     }
     loadData();
+
+    const handleDealsChange = (e: any) => {
+      if (e.detail) {
+        setDeals(sortDeals(e.detail));
+      }
+    };
+    window.addEventListener('empirial_deals_changed', handleDealsChange);
+    return () => {
+      window.removeEventListener('empirial_deals_changed', handleDealsChange);
+    };
   }, []);
 
   const handleCopyCode = (code: string, dealId: string, e?: React.MouseEvent) => {
@@ -117,16 +132,17 @@ export function DealsClient() {
       // 1. Search Query
       if (query) {
         const q = query.toLowerCase();
-        const matchName = deal.firm_name.toLowerCase().includes(q);
-        const matchCode = deal.code.toLowerCase().includes(q);
-        const matchDesc = deal.description.toLowerCase().includes(q);
-        const matchLabel = deal.discount_label.toLowerCase().includes(q);
-        if (!matchName && !matchCode && !matchDesc && !matchLabel) {
+        const matchName = (deal.firm_name || '').toLowerCase().includes(q);
+        const matchCode = (deal.code || '').toLowerCase().includes(q);
+        const matchDesc = (deal.description || '').toLowerCase().includes(q);
+        const matchLabel = (deal.discount_label || '').toLowerCase().includes(q);
+        const matchCategory = (deal.category || '').toLowerCase().includes(q);
+        if (!matchName && !matchCode && !matchDesc && !matchLabel && !matchCategory) {
           return false;
         }
       }
 
-      // 2. Firm Type Filter (Forex, Futures, Crypto)
+      // 2. Firm Type Filter (Forex, Futures, Crypto, Instant Funding, etc.)
       if (selectedFirmType !== 'all' && deal.category !== selectedFirmType) {
         return false;
       }
@@ -136,10 +152,10 @@ export function DealsClient() {
         if (selectedOfferType === 'bogo' && !deal.is_bogo && deal.offer_type !== 'bogo') {
           return false;
         }
-        if (selectedOfferType === 'cashback' && deal.offer_type !== 'cashback') {
+        if (selectedOfferType === 'cashback' && !deal.cashback_pct && deal.offer_type !== 'cashback') {
           return false;
         }
-        if (selectedOfferType === 'refund' && deal.offer_type !== 'refund') {
+        if (selectedOfferType === 'refund' && !deal.refund_pct && deal.offer_type !== 'refund') {
           return false;
         }
         if (selectedOfferType === 'discount' && deal.offer_type !== 'discount') {
@@ -149,13 +165,14 @@ export function DealsClient() {
 
       return true;
     });
-  }, [query, selectedFirmType, selectedOfferType]);
+  }, [deals, query, selectedFirmType, selectedOfferType]);
 
   const firmTypeLabels: Record<string, string> = {
     all: 'Firm Types: All',
     forex: 'Firm Type: Forex',
     futures: 'Firm Type: Futures',
     crypto: 'Firm Type: Crypto',
+    'instant-funding': 'Firm Type: Instant Funding',
   };
 
   if (loading) {
@@ -227,6 +244,7 @@ export function DealsClient() {
                   { label: 'Forex Firms', val: 'forex' },
                   { label: 'Futures Firms', val: 'futures' },
                   { label: 'Crypto Firms', val: 'crypto' },
+                  { label: 'Instant Funding', val: 'instant-funding' },
                 ].map((type) => (
                   <DropdownMenuItem
                     key={type.val}
@@ -376,7 +394,7 @@ export function DealsClient() {
                           <div className="text-center flex flex-col items-center justify-center">
                             <div className="flex items-center gap-1.5">
                               <h3 className="text-lg font-bold sm:text-xl text-foreground">
-                                {deal.firm_name}
+                                {deal.firm_name || deal.firm_slug || 'Prop Firm'}
                               </h3>
                               {deal.is_verified && (
                                 <Tooltip>
@@ -404,7 +422,7 @@ export function DealsClient() {
                                   (f.name || '').toLowerCase() === (deal.firm_name || '').toLowerCase()
                               ) || {
                                 id: deal.firm_id || 'nys',
-                                name: deal.firm_name,
+                                name: deal.firm_name || 'Prop Firm',
                                 slug: deal.firm_slug || 'nys-capital',
                                 rating: deal.rating || 4.8,
                                 review_count: deal.review_count || 125,
@@ -425,7 +443,7 @@ export function DealsClient() {
 
                                   {/* Firm Type Badge */}
                                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-100/90 dark:bg-zinc-900 text-foreground border border-zinc-200/80 dark:border-zinc-800">
-                                    {deal.category}
+                                    {deal.category || 'forex'}
                                   </span>
                                 </div>
                               );
@@ -446,12 +464,12 @@ export function DealsClient() {
                                   {firmLogoSrc ? (
                                     <img
                                       src={firmLogoSrc}
-                                      alt={deal.firm_name}
+                                      alt={deal.firm_name || 'Prop Firm'}
                                       className="h-14 sm:h-16 w-auto max-w-[170px] sm:max-w-[200px] object-contain rounded-md transition-transform duration-200 hover:scale-105"
                                     />
                                   ) : (
                                     <div className="h-14 w-28 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-extrabold text-foreground text-sm">
-                                      {deal.firm_name.substring(0, 4)}
+                                      {(deal.firm_name || deal.firm_slug || 'FIRM').substring(0, 4).toUpperCase()}
                                     </div>
                                   )}
                                 </div>
