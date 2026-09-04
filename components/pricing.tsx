@@ -262,7 +262,7 @@ export default function Pricing() {
                         ? "Copied!"
                         : hasCopiedCodes[firm.id]
                         ? "Code Copied ✓"
-                        : "Code Empire"}
+                        : `${firm.discount_pct || 20}% OFF`}
                     </motion.button>
 
                     {/* Buy Challenge Button */}

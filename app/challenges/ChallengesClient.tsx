@@ -701,7 +701,7 @@ export function ChallengesClient() {
                                 ) : (
                                   <>
                                     <Copy className="w-3.5 h-3.5" />
-                                    <span>Code EMPIRE</span>
+                                    <span>{ch.discount_pct ? `${ch.discount_pct}% OFF` : '20% OFF'}</span>
                                   </>
                                 )}
                               </motion.button>
@@ -800,7 +800,7 @@ export function ChallengesClient() {
                                     : 'border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-card dark:text-foreground'
                                 }`}
                               >
-                                {isCopiedNow ? 'Copied!' : hasCopied ? 'Code Copied ✓' : 'Code EMPIRE'}
+                                {isCopiedNow ? 'Copied!' : hasCopied ? 'Code Copied ✓' : `${ch.discount_pct || 20}% OFF`}
                               </motion.button>
 
                               <button
