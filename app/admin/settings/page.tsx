@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, CheckCircle2, Database, AlertTriangle, Globe, Shield, ShieldCheck } from 'lucide-react';
 import { seedDatabase } from '@/lib/firebase/seeder';
-import { getSiteSettings, updateSiteSettings } from '@/lib/firebase/services';
+import { getSiteSettings, updateSiteSettings, invalidateSiteSettingsCache } from '@/lib/firebase/services';
 
 export default function AdminSettingsPage() {
   const [brandName, setBrandName] = useState('EMPIRIAL');
@@ -112,6 +112,7 @@ export default function AdminSettingsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      invalidateSiteSettingsCache();
       await updateSiteSettings({
         brandName,
         shortName,

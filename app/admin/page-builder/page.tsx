@@ -27,6 +27,7 @@ import {
 import {
   getSiteSettings,
   updateSiteSettings,
+  invalidateSiteSettingsCache,
   getPartnerLogos,
   savePartnerLogos,
   getPricingPlans,
@@ -292,6 +293,7 @@ export default function AdminPageBuilderPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      invalidateSiteSettingsCache();
       await updateSiteSettings({
         hero: {
           title: heroTitle,

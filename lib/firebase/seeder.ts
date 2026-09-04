@@ -24,7 +24,7 @@ export async function seedDatabase() {
   const batchWrite = async (items: any[], getDocRef: (item: any) => any) => {
     let batch = writeBatch(db);
     let count = 0;
-    
+
     for (const item of items) {
       const docRef = getDocRef(item);
       // Clean undefined values since Firestore does not accept undefined
@@ -35,14 +35,14 @@ export async function seedDatabase() {
         updated_at: new Date().toISOString(),
       });
       count++;
-      
+
       if (count === 400) {
         await batch.commit();
         batch = writeBatch(db);
         count = 0;
       }
     }
-    
+
     if (count > 0) {
       await batch.commit();
     }

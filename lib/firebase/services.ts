@@ -67,11 +67,23 @@ export async function deleteImage(fileUrl: string): Promise<void> {
 // ==========================================
 // SITE SETTINGS
 // ==========================================
-export async function getSiteSettings(): Promise<any> {
-  if (!db) return null;
-  const docRef = doc(db, 'siteSettings', 'main');
-  const snap = await getDoc(docRef);
-  return snap.exists() ? snap.data() : null;
+
+// Module-level cache: all components share one single Firestore fetch.
+// This eliminates the repeated per-component network delay.
+let _siteSettingsCache: Promise<any> | null = null;
+
+export function getSiteSettings(): Promise<any> {
+  if (!db) return Promise.resolve(null);
+  if (!_siteSettingsCache) {
+    const docRef = doc(db, 'siteSettings', 'main');
+    _siteSettingsCache = getDoc(docRef).then(snap => snap.exists() ? snap.data() : null);
+  }
+  return _siteSettingsCache;
+}
+
+/** Call this to force-refresh the cache (e.g. after admin saves settings) */
+export function invalidateSiteSettingsCache() {
+  _siteSettingsCache = null;
 }
 
 export async function updateSiteSettings(data: any): Promise<void> {
