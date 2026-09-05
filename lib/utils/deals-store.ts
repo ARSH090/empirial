@@ -4,29 +4,23 @@ import { Deal } from '@/lib/types';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
 
 const STORAGE_KEY = 'empirial_deals_list';
+const INITIALIZED_KEY = 'empirial_deals_initialized';
 
 export function getStoredDeals(): Deal[] {
   if (typeof window === 'undefined') return MOCK_DEALS;
   try {
+    const isInit = localStorage.getItem(INITIALIZED_KEY);
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_DEALS));
-      return MOCK_DEALS;
+
+    if (isInit === 'true') {
+      if (!raw) return [];
+      const parsed: Deal[] = JSON.parse(raw);
+      return Array.isArray(parsed) ? sortDeals(parsed) : [];
     }
-    const parsed: Deal[] = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_DEALS));
-      return MOCK_DEALS;
-    }
-    // Ensure all mock deals exist if deleted or missing from old cache
-    const existingIds = new Set(parsed.map((d) => d.id));
-    const merged = [...parsed];
-    for (const mock of MOCK_DEALS) {
-      if (!existingIds.has(mock.id)) {
-        merged.push(mock);
-      }
-    }
-    return sortDeals(merged);
+
+    localStorage.setItem(INITIALIZED_KEY, 'true');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_DEALS));
+    return sortDeals(MOCK_DEALS);
   } catch {
     return MOCK_DEALS;
   }
@@ -36,6 +30,7 @@ export function saveStoredDeals(deals: Deal[]): void {
   if (typeof window === 'undefined') return;
   try {
     const sorted = sortDeals(deals);
+    localStorage.setItem(INITIALIZED_KEY, 'true');
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
     window.dispatchEvent(new CustomEvent('empirial_deals_changed', { detail: sorted }));
   } catch (err) {

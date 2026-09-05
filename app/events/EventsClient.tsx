@@ -49,25 +49,62 @@ import {
 export function EventsClient() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState<number>(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   
   useEffect(() => {
     async function loadEvents() {
       try {
         const data = await getEvents();
-        if (data && data.length > 0) {
-          setEvents(data);
-        } else {
-          setEvents(MOCK_EVENTS);
-        }
+        setEvents(data);
       } catch (err) {
         console.error('Failed to load events:', err);
-        setEvents(MOCK_EVENTS);
+        setEvents([]);
       } finally {
         setLoading(false);
       }
     }
     loadEvents();
   }, []);
+
+  const getEventTimeStatus = (startDateStr: string | undefined, nowTime: number) => {
+    if (!startDateStr) return { isStarted: false, countdownText: 'Active Now' };
+    const startTime = new Date(startDateStr).getTime();
+    if (isNaN(startTime)) return { isStarted: false, countdownText: 'Active Now' };
+
+    const diff = startTime - nowTime;
+    if (diff <= 0) {
+      return { isStarted: true, countdownText: 'EVENT IS STARTED' };
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+
+    const formattedHours = String(hours).padStart(2, '0');
+    const formattedMinutes = String(minutes).padStart(2, '0');
+    const formattedSeconds = String(seconds).padStart(2, '0');
+
+    if (days > 0) {
+      return {
+        isStarted: false,
+        countdownText: `Starts in ${days}d ${formattedHours}h ${formattedMinutes}m ${formattedSeconds}s`,
+      };
+    }
+
+    return {
+      isStarted: false,
+      countdownText: `Starts in ${formattedHours}:${formattedMinutes}:${formattedSeconds}`,
+    };
+  };
+
   // Main Category Tab: 'all' | 'giveaway' | 'event'
   const [mainCategory, setMainCategory] = useState<'all' | EventCategory>('all');
   
@@ -107,6 +144,12 @@ export function EventsClient() {
   // Toggle task completion (Requires Account)
   const handleToggleTask = (eventId: string, taskId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const targetEv = events.find((ev) => ev.id === eventId);
+    if (targetEv) {
+      const status = getEventTimeStatus(targetEv.start_date, Date.now());
+      if (status.isStarted) return;
+    }
+
     const user = getStoredUser();
     if (!user) {
       openAuthModal();
@@ -136,9 +179,12 @@ export function EventsClient() {
     }));
   };
 
-  // Register for event handler (Requires Account)
+  // Register for Event Handler
   const handleRegisterEvent = (ev: Event, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const status = getEventTimeStatus(ev.start_date, Date.now());
+    if (status.isStarted) return;
+
     const user = getStoredUser();
     if (!user) {
       openAuthModal();
@@ -655,8 +701,8 @@ export function EventsClient() {
                                 <Clock className="w-3.5 h-3.5 text-foreground shrink-0" />
                                 <span>Timeline:</span>
                               </span>
-                              <span className="font-mono text-[11px] font-bold text-foreground">
-                                {ev.countdown_label || 'Active Now'}
+                              <span className={`font-mono text-[11px] font-bold ${getEventTimeStatus(ev.start_date, now).isStarted ? 'text-amber-600 dark:text-amber-400 font-extrabold' : 'text-foreground'}`}>
+                                {getEventTimeStatus(ev.start_date, now).countdownText}
                               </span>
                             </div>
                           </div>
@@ -689,7 +735,12 @@ export function EventsClient() {
 
                           {/* Action CTA Button (Strictly RULE:BW) */}
                           <div className="pt-1">
-                            {isRegistered ? (
+                            {getEventTimeStatus(ev.start_date, now).isStarted ? (
+                              <div className="w-full py-2.5 px-4 rounded-xl bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-extrabold text-xs text-center flex items-center justify-center gap-1.5 border border-zinc-300 dark:border-zinc-700 cursor-not-allowed">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>EVENT IS STARTED</span>
+                              </div>
+                            ) : isRegistered ? (
                               <div className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/40 dark:border-emerald-600/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold text-center flex items-center justify-center gap-1.5">
                                 <Check className="w-3.5 h-3.5" />
                                 <span>Registered & Confirmed</span>
@@ -783,6 +834,11 @@ export function EventsClient() {
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 text-foreground border-0">
                           {selectedEventModal.category.toUpperCase()} • {selectedEventModal.sub_category.toUpperCase()}
                         </span>
+                        {getEventTimeStatus(selectedEventModal.start_date, now).isStarted && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-700 dark:text-amber-300 border-0">
+                            EVENT IS STARTED
+                          </span>
+                        )}
                         <span className="text-xs text-muted-foreground flex items-center gap-1 font-semibold">
                           Hosted by <strong className="text-foreground">{selectedEventModal.host_name}</strong>
                           {selectedEventModal.is_firm_sponsored && <Check className="w-3.5 h-3.5 text-emerald-500" />}
@@ -846,12 +902,10 @@ export function EventsClient() {
                   )}
 
                   {/* 4. Schedule & Timing */}
-                  {selectedEventModal.schedule && (
-                    <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-muted-foreground">
-                      <strong className="text-foreground block mb-0.5 text-xs font-bold">Schedule & Timing:</strong>
-                      <span>{selectedEventModal.schedule}</span>
-                    </div>
-                  )}
+                  <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-muted-foreground">
+                    <strong className="text-foreground block mb-0.5 text-xs font-bold">Schedule & Timing:</strong>
+                    <span>{getEventTimeStatus(selectedEventModal.start_date, now).isStarted ? 'EVENT IS STARTED' : getEventTimeStatus(selectedEventModal.start_date, now).countdownText}</span>
+                  </div>
 
                   {/* ================= DOWNSIDE SECTIONS ================= */}
                   {selectedEventModal.registration_tasks && selectedEventModal.registration_tasks.length > 0 && (
@@ -867,6 +921,13 @@ export function EventsClient() {
                             {(completedTaskIds[selectedEventModal.id] || []).length} / {selectedEventModal.registration_tasks.length} Completed
                           </span>
                         </div>
+
+                        {getEventTimeStatus(selectedEventModal.start_date, now).isStarted && (
+                          <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2">
+                            <Clock className="w-4 h-4 shrink-0" />
+                            <span>Registration is automatically closed because this tournament has already started.</span>
+                          </div>
+                        )}
 
                         {/* Task List with UNIFORM Button Sizes (w-24 h-8 for all buttons) */}
                         <div className="space-y-2">
@@ -908,8 +969,9 @@ export function EventsClient() {
                                 ) : (
                                   <button
                                     type="button"
+                                    disabled={getEventTimeStatus(selectedEventModal.start_date, now).isStarted}
                                     onClick={(e) => handleToggleTask(selectedEventModal.id, task.id, e)}
-                                    className="w-24 h-8 flex items-center justify-center rounded-xl bg-[#0084ff] hover:bg-[#0073e6] text-white text-[11px] font-bold transition-all border-0 shadow-xs shrink-0 cursor-pointer"
+                                    className="w-24 h-8 flex items-center justify-center rounded-xl bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-50 text-white text-[11px] font-bold transition-all border-0 shadow-xs shrink-0 cursor-pointer"
                                   >
                                     {isDone ? 'Completed' : 'Mark Done'}
                                   </button>
@@ -937,9 +999,10 @@ export function EventsClient() {
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               {/* Native Computer File Selector */}
-                              <label className="flex-1 cursor-pointer">
+                              <label className={`flex-1 ${getEventTimeStatus(selectedEventModal.start_date, now).isStarted ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                                 <input
                                   type="file"
+                                  disabled={getEventTimeStatus(selectedEventModal.start_date, now).isStarted}
                                   accept="image/*"
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];
@@ -963,21 +1026,23 @@ export function EventsClient() {
                               {/* Manual Link Input */}
                               <input
                                 type="text"
+                                disabled={getEventTimeStatus(selectedEventModal.start_date, now).isStarted}
                                 value={proofInput[selectedEventModal.id] || ''}
                                 onChange={(e) => setProofInput({ ...proofInput, [selectedEventModal.id]: e.target.value })}
                                 placeholder="Or paste image URL / Discord ticket #..."
-                                className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground disabled:opacity-50"
                               />
 
                               {/* Uniform Sky Blue Submit Button (w-24 h-9) */}
                               <button
                                 type="button"
+                                disabled={getEventTimeStatus(selectedEventModal.start_date, now).isStarted}
                                 onClick={() => {
                                   if (proofInput[selectedEventModal.id]) {
                                     handleSubmitProof(selectedEventModal.id, proofInput[selectedEventModal.id]);
                                   }
                                 }}
-                                className="w-24 h-9 flex items-center justify-center rounded-xl bg-[#0084ff] hover:bg-[#0073e6] text-white text-xs font-bold transition-all border-0 shadow-xs shrink-0 cursor-pointer"
+                                className="w-24 h-9 flex items-center justify-center rounded-xl bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-50 text-white text-xs font-bold transition-all border-0 shadow-xs shrink-0 cursor-pointer"
                               >
                                 <Send className="w-3.5 h-3.5 mr-1" />
                                 <span>Submit</span>
@@ -1014,7 +1079,12 @@ export function EventsClient() {
                       Close
                     </button>
 
-                    {registeredEventIds.includes(selectedEventModal.id) ? (
+                    {getEventTimeStatus(selectedEventModal.start_date, now).isStarted ? (
+                      <div className="px-5 py-2 rounded-xl bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-extrabold flex items-center gap-1.5 border border-zinc-300 dark:border-zinc-700 cursor-not-allowed">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>EVENT IS STARTED</span>
+                      </div>
+                    ) : registeredEventIds.includes(selectedEventModal.id) ? (
                       <div className="px-5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5">
                         <Check className="w-3.5 h-3.5" />
                         <span>Registered & Emailed</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,6 +31,7 @@ import { calculateFirmMetrics } from '@/lib/utils/rating-calculator';
 
 // Map firm IDs to authentic uploaded local logo assets in /logos/
 const FIRM_LOGOS: Record<string, string> = {
+  'nys-capital': '/logos/nys.png',
   'nys': '/logos/nys.png',
   'ck-capital': '/logos/ck-capital.avif',
   'alpha-capital': '/logos/alpha-capital.png',
@@ -41,10 +42,11 @@ const FIRM_LOGOS: Record<string, string> = {
   'goat-funded-trader': '/logos/gtf.svg',
   'sure-leverage': '/logos/sure-leverage.jpg',
   'sure-leverage-funding': '/logos/sure-leverage.jpg',
+  'my-funded-fx': '/logos/mff.svg',
   'ftmo': '/logos/ftmo.svg',
-  'the-5ers': '/logos/the5ers.svg',
-  'the5ers': '/logos/the5ers.svg',
-  'funding-pips': '/logos/funding-pips.svg',
+  'the-5ers': '/logos/5ers.svg',
+  'the5ers': '/logos/5ers.svg',
+  'funding-pips': '/logos/fundingpips.svg',
   'topstep': '/logos/topstep.svg',
   'apex': '/logos/apex.svg',
   'apex-trader-funding': '/logos/apex.svg',
@@ -57,6 +59,18 @@ export function ChallengesClient() {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const firmParam = searchParams.get('firm');
+  const stepParam = searchParams.get('step');
+
+  const parseStepValue = useCallback((param: string | null): number | null => {
+    if (param === null || param === undefined || param === '') return null;
+    const lower = param.toLowerCase().trim();
+    if (lower === 'instant' || lower === '0') return 0;
+    if (lower === '1' || lower === '1-step' || lower === '1step') return 1;
+    if (lower === '2' || lower === '2-step' || lower === '2step') return 2;
+    if (lower === '3' || lower === '3-step' || lower === '3step') return 3;
+    const num = parseInt(lower, 10);
+    return isNaN(num) ? null : num;
+  }, []);
 
   const [query, setQuery] = useState('');
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -70,16 +84,28 @@ export function ChallengesClient() {
     return [];
   });
 
+  const [selectedSizes, setSelectedSizes] = useState<number[]>([]);
+  const [selectedSteps, setSelectedSteps] = useState<number[]>(() => {
+    const stepNum = parseStepValue(stepParam);
+    return stepNum !== null ? [stepNum] : [];
+  });
+
   useEffect(() => {
     if (firmParam) {
-      const matched = MOCK_FIRMS.find((f) => f.id === firmParam || f.slug === firmParam);
+      const list = firms.length > 0 ? firms : MOCK_FIRMS;
+      const matched = list.find((f) => f.id === firmParam || f.slug === firmParam);
       const targetId = matched ? matched.id : firmParam;
-      setSelectedFirms((prev) => (prev.includes(targetId) ? prev : [targetId]));
+      setSelectedFirms([targetId]);
     }
-  }, [firmParam]);
+  }, [firmParam, firms]);
 
-  const [selectedSizes, setSelectedSizes] = useState<number[]>([]);
-  const [selectedSteps, setSelectedSteps] = useState<number[]>([]);
+  useEffect(() => {
+    const stepNum = parseStepValue(stepParam);
+    if (stepNum !== null) {
+      setSelectedSteps([stepNum]);
+    }
+  }, [stepParam, parseStepValue]);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortMode, setSortMode] = useState<'all' | 'popular' | 'best-value' | 'price-low' | 'price-high' | 'size-high'>('all');
 
@@ -221,7 +247,12 @@ export function ChallengesClient() {
       if (selectedCategory !== 'all' && ch.category !== selectedCategory) return false;
 
       // Firms Multi-Select
-      if (selectedFirms.length > 0 && !selectedFirms.includes(ch.firm_id)) return false;
+      if (
+        selectedFirms.length > 0 &&
+        !selectedFirms.includes(ch.firm_id) &&
+        (!ch.firm_slug || !selectedFirms.includes(ch.firm_slug))
+      )
+        return false;
 
       // Sizes Multi-Select
       if (selectedSizes.length > 0 && !selectedSizes.includes(ch.account_size)) return false;

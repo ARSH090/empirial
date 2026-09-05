@@ -21,6 +21,8 @@ import {
   Building2,
   Filter,
   SlidersHorizontal,
+  Eye,
+  Upload,
 } from 'lucide-react';
 import { MOCK_DEALS } from '@/lib/data/deals-data';
 import { MOCK_FIRMS } from '@/lib/data/firms-data';
@@ -68,6 +70,8 @@ export default function AdminDealsPage() {
   // Offer Poster Config State
   const [posterConfig, setPosterConfig] = useState<OfferPosterConfig>(DEFAULT_OFFER_POSTER);
   const [isPosterSaved, setIsPosterSaved] = useState(false);
+  const [showPosterPreview, setShowPosterPreview] = useState(false);
+  const [benefitsText, setBenefitsText] = useState('');
 
   // Form State for New Offer (Includes Requirement 2 & 3)
   const [formData, setFormData] = useState<{
@@ -103,7 +107,9 @@ export default function AdminDealsPage() {
   });
 
   useEffect(() => {
-    setPosterConfig(getStoredOfferPoster());
+    const loadedPoster = getStoredOfferPoster();
+    setPosterConfig(loadedPoster);
+    setBenefitsText((loadedPoster.benefits || []).join('\n'));
 
     async function loadData() {
       try {
@@ -199,10 +205,37 @@ export default function AdminDealsPage() {
     }
   };
 
+  // Handle Poster Image Upload File
+  const handlePosterImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      if (evt.target?.result) {
+        setPosterConfig((prev) => ({
+          ...prev,
+          posterImageUrl: evt.target!.result as string,
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handle Poster Settings Save
   const handleSavePoster = (e: React.FormEvent) => {
     e.preventDefault();
-    saveOfferPoster(posterConfig);
+    const cleanedBenefits = benefitsText
+      .split('\n')
+      .map((b) => b.trim())
+      .filter(Boolean);
+
+    const finalConfig: OfferPosterConfig = {
+      ...posterConfig,
+      benefits: cleanedBenefits.length > 0 ? cleanedBenefits : posterConfig.benefits || [],
+    };
+
+    saveOfferPoster(finalConfig);
+    setPosterConfig(finalConfig);
     setIsPosterSaved(true);
     setTimeout(() => setIsPosterSaved(false), 2500);
   };
@@ -210,6 +243,7 @@ export default function AdminDealsPage() {
   const handleResetPoster = () => {
     const defaultConf = resetOfferPoster();
     setPosterConfig(defaultConf);
+    setBenefitsText((defaultConf.benefits || []).join('\n'));
     setIsPosterSaved(true);
     setTimeout(() => setIsPosterSaved(false), 2500);
   };
@@ -421,7 +455,7 @@ export default function AdminDealsPage() {
       )}
 
       {/* Global Welcome Offer Poster Manager */}
-      <div className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-3xl p-6 sm:p-7 shadow-xs space-y-5">
+      <div className="bg-white dark:bg-card border border-zinc-200 dark:border-border rounded-3xl p-6 sm:p-7 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -431,46 +465,133 @@ export default function AdminDealsPage() {
               </h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Configure the automated modal banner greeting first-time visitors on session open.
+              Upload poster image, configure offer copy, select popup layout, and preview live before visitors see it.
             </p>
           </div>
 
-          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={posterConfig.enabled}
-              onChange={(e) => setPosterConfig({ ...posterConfig, enabled: e.target.checked })}
-              className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-black dark:text-white focus:ring-0 cursor-pointer"
-            />
-            <span className={posterConfig.enabled ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-muted-foreground"}>
-              {posterConfig.enabled ? "Popup Active" : "Popup Disabled"}
-            </span>
-          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowPosterPreview(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 text-xs font-semibold cursor-pointer transition-colors"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Preview Poster</span>
+            </button>
+
+            <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={posterConfig.enabled}
+                onChange={(e) => setPosterConfig({ ...posterConfig, enabled: e.target.checked })}
+                className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-black dark:text-white focus:ring-0 cursor-pointer"
+              />
+              <span className={posterConfig.enabled ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-muted-foreground"}>
+                {posterConfig.enabled ? "Popup Active" : "Popup Disabled"}
+              </span>
+            </label>
+          </div>
         </div>
 
-        <form onSubmit={handleSavePoster} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                Layout Structure
+        <form onSubmit={handleSavePoster} className="space-y-5">
+          {/* Poster Image Upload & Preview Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800">
+            {/* Poster Thumbnail */}
+            <div className="md:col-span-4 flex flex-col items-center gap-2">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground self-start">
+                Poster Graphic Preview
               </label>
-              <select
-                value={posterConfig.layoutStructure || 'side-by-side'}
-                onChange={(e) => setPosterConfig({ ...posterConfig, layoutStructure: e.target.value as any })}
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none font-medium"
-              >
-                <option value="side-by-side">Side-by-Side (Portrait Left + Details Right)</option>
-                <option value="stacked">Stacked (Portrait Top + Details Downside)</option>
-              </select>
+              {posterConfig.posterImageUrl ? (
+                <div className="relative w-full max-w-[200px] h-[240px] rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-950 shadow-md group">
+                  <img
+                    src={posterConfig.posterImageUrl}
+                    alt="Poster Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPosterConfig({ ...posterConfig, posterImageUrl: '' })}
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white hover:bg-rose-600 transition-colors"
+                    title="Remove Poster Image"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full max-w-[200px] h-[240px] rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex flex-col items-center justify-center p-4 text-center text-muted-foreground bg-zinc-100/50 dark:bg-zinc-900">
+                  <Upload className="w-8 h-8 mb-2 opacity-50" />
+                  <span className="text-xs font-medium">No Poster Uploaded</span>
+                </div>
+              )}
             </div>
 
+            {/* Upload Controls & URL */}
+            <div className="md:col-span-8 space-y-4 text-xs">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Upload Poster File (Portrait / Banner)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePosterImageFile}
+                  className="w-full text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-black file:text-white dark:file:bg-white dark:file:text-black cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Or Paste Direct Poster Image URL
+                </label>
+                <input
+                  type="text"
+                  value={posterConfig.posterImageUrl || ''}
+                  onChange={(e) => setPosterConfig({ ...posterConfig, posterImageUrl: e.target.value })}
+                  placeholder="https://images.unsplash.com/photo-..."
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Layout Structure
+                  </label>
+                  <select
+                    value={posterConfig.layoutStructure || 'side-by-side'}
+                    onChange={(e) => setPosterConfig({ ...posterConfig, layoutStructure: e.target.value as any })}
+                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none font-medium"
+                  >
+                    <option value="side-by-side">Side-by-Side (Poster Left + Details Right)</option>
+                    <option value="stacked">Stacked (Poster Top + Details Below)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Discount Badge Tag
+                  </label>
+                  <input
+                    type="text"
+                    value={posterConfig.discountTag || ''}
+                    onChange={(e) => setPosterConfig({ ...posterConfig, discountTag: e.target.value })}
+                    placeholder="UP TO 80% OFF"
+                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Copy & Details Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                Badge / Top Label
+                Top Badge Label
               </label>
               <input
                 type="text"
-                value={posterConfig.badge}
+                value={posterConfig.badge || ''}
                 onChange={(e) => setPosterConfig({ ...posterConfig, badge: e.target.value })}
                 className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none"
               />
@@ -482,8 +603,20 @@ export default function AdminDealsPage() {
               </label>
               <input
                 type="text"
-                value={posterConfig.title}
+                value={posterConfig.title || ''}
                 onChange={(e) => setPosterConfig({ ...posterConfig, title: e.target.value })}
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Subtitle Description
+              </label>
+              <input
+                type="text"
+                value={posterConfig.subtitle || ''}
+                onChange={(e) => setPosterConfig({ ...posterConfig, subtitle: e.target.value })}
                 className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none"
               />
             </div>
@@ -494,27 +627,90 @@ export default function AdminDealsPage() {
               </label>
               <input
                 type="text"
-                value={posterConfig.couponCode}
+                value={posterConfig.couponCode || ''}
                 onChange={(e) => setPosterConfig({ ...posterConfig, couponCode: e.target.value })}
                 className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 font-mono uppercase text-foreground font-bold focus:outline-none"
               />
             </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Button Text
+              </label>
+              <input
+                type="text"
+                value={posterConfig.buttonText || ''}
+                onChange={(e) => setPosterConfig({ ...posterConfig, buttonText: e.target.value })}
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Button Destination Link
+              </label>
+              <input
+                type="text"
+                value={posterConfig.buttonLink || ''}
+                onChange={(e) => setPosterConfig({ ...posterConfig, buttonLink: e.target.value })}
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-foreground focus:outline-none font-mono"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={handleResetPoster}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset to Default</span>
-            </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Offer Benefits (One per line)
+              </label>
+              <textarea
+                rows={3}
+                value={benefitsText}
+                onChange={(e) => setBenefitsText(e.target.value)}
+                placeholder="Payout Protection Guarantee&#10;Special Accounts (100% OFF)&#10;VIP Support via Discord"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-foreground focus:outline-none font-sans"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Extra Note / Timer Urgency Footer
+              </label>
+              <textarea
+                rows={3}
+                value={posterConfig.extraNote || ''}
+                onChange={(e) => setPosterConfig({ ...posterConfig, extraNote: e.target.value })}
+                placeholder="Valid till Friday 5 PM EST. 1 Lucky buyer gets a 100% Free Account!"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-foreground focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetPoster}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset to Default</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowPosterPreview(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Live Preview Poster</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-3">
               {isPosterSaved && (
                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" /> Saved & Updated Live!
+                  <Check className="w-3.5 h-3.5" /> Saved & Live!
                 </span>
               )}
               <button
@@ -1150,6 +1346,128 @@ export default function AdminDealsPage() {
           </table>
         </div>
       </div>
+
+      {/* Live Poster Popup Preview Modal */}
+      {showPosterPreview && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A] p-6 sm:p-8 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Eye className="w-5 h-5 text-foreground" />
+                <h3 className="text-base font-bold text-foreground">Live Offer Poster Popup Preview</h3>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-muted-foreground font-semibold">
+                  {posterConfig.layoutStructure === 'stacked' ? 'Stacked Layout' : 'Side-by-Side Layout'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPosterPreview(false)}
+                className="p-2 rounded-full text-muted-foreground hover:text-foreground bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-black dark:border-white bg-zinc-100 dark:bg-zinc-900 text-xs font-semibold text-foreground tracking-wide uppercase">
+                <Sparkles className="w-3.5 h-3.5 fill-current" />
+                <span>{posterConfig.badge || 'SPECIAL OFFER'}</span>
+              </div>
+
+              {posterConfig.layoutStructure === 'stacked' ? (
+                <div className="space-y-5">
+                  {posterConfig.posterImageUrl && (
+                    <div className="w-full flex justify-center">
+                      <img
+                        src={posterConfig.posterImageUrl}
+                        alt={posterConfig.title}
+                        className="w-full max-h-[300px] object-cover rounded-2xl border-2 border-zinc-200 dark:border-zinc-800"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                      {posterConfig.title}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">{posterConfig.subtitle}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                  {posterConfig.posterImageUrl && (
+                    <div className="md:col-span-5 flex justify-center">
+                      <img
+                        src={posterConfig.posterImageUrl}
+                        alt={posterConfig.title}
+                        className="w-full max-h-[380px] object-cover rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 shadow-lg"
+                      />
+                    </div>
+                  )}
+                  <div className={`${posterConfig.posterImageUrl ? 'md:col-span-7' : 'md:col-span-12'} space-y-4`}>
+                    <div>
+                      <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                        {posterConfig.title}
+                      </h2>
+                      <p className="text-sm text-muted-foreground mt-1">{posterConfig.subtitle}</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      {posterConfig.discountTag && (
+                        <span className="px-3 py-1 rounded-xl bg-black text-white dark:bg-white dark:text-black font-bold text-xs">
+                          {posterConfig.discountTag}
+                        </span>
+                      )}
+                      {posterConfig.couponCode && (
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 font-mono font-bold text-xs">
+                          <span>CODE: {posterConfig.couponCode}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {posterConfig.benefits && posterConfig.benefits.length > 0 && (
+                      <div className="space-y-1.5 pt-2">
+                        {posterConfig.benefits.map((b, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-foreground font-medium">
+                            <Check className="w-3.5 h-3.5 text-foreground shrink-0" />
+                            <span>{b}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => alert(`Destination URL: ${posterConfig.buttonLink || '#'}`)}
+                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span>{posterConfig.buttonText || 'Claim Offer'}</span>
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {posterConfig.extraNote && (
+                <p className="text-xs text-center text-muted-foreground italic border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                  {posterConfig.extraNote}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowPosterPreview(false)}
+                className="px-5 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black text-xs font-semibold cursor-pointer"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

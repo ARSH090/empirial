@@ -32,6 +32,7 @@ import {
   updateEvent,
   deleteEvent,
   getFirms,
+  sanitizeForFirestore,
 } from '@/lib/firebase/services';
 
 export default function AdminEventsPage() {
@@ -56,6 +57,7 @@ export default function AdminEventsPage() {
     prize_pool: string;
     poster_url: string;
     description: string;
+    start_date: string;
     countdown_label: string;
     requires_discord: boolean;
     discord_url: string;
@@ -73,6 +75,7 @@ export default function AdminEventsPage() {
     prize_pool: '$100,000 in Accounts + $10,000 Cash',
     poster_url: 'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=1200&auto=format&fit=crop&q=80',
     description: 'Official audited prop trading tournament with instant allocation prizes.',
+    start_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
     countdown_label: 'Starts in 7 Days',
     requires_discord: true,
     discord_url: 'https://discord.gg/empirial',
@@ -93,7 +96,7 @@ export default function AdminEventsPage() {
     async function loadData() {
       try {
         const [eventsData, firmsData] = await Promise.all([getEvents(), getFirms()]);
-        setEvents(eventsData.length > 0 ? eventsData : MOCK_EVENTS);
+        setEvents(eventsData);
         const resolvedFirms = firmsData.length > 0 ? firmsData : MOCK_FIRMS;
         setFirmsList(resolvedFirms);
         if (resolvedFirms.length > 0) {
@@ -104,7 +107,7 @@ export default function AdminEventsPage() {
         }
       } catch (err) {
         console.error('Failed to load events data:', err);
-        setEvents(MOCK_EVENTS);
+        setEvents([]);
         setFirmsList(MOCK_FIRMS);
       } finally {
         setLoading(false);
@@ -204,6 +207,7 @@ export default function AdminEventsPage() {
       prize_pool: '$100,000 in Accounts + $10,000 Cash',
       poster_url: 'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=1200&auto=format&fit=crop&q=80',
       description: 'Official audited prop trading tournament with instant allocation prizes.',
+      start_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
       countdown_label: 'Starts in 7 Days',
       requires_discord: true,
       discord_url: 'https://discord.gg/empirial',
@@ -221,6 +225,10 @@ export default function AdminEventsPage() {
     const firmObj = formData.is_firm_sponsored
       ? firmsList.find((f) => f.id === formData.firm_id)
       : undefined;
+
+    const startDateIso = formData.start_date
+      ? new Date(formData.start_date).toISOString()
+      : new Date(Date.now() + 7 * 86400000).toISOString();
 
     const newEv: Omit<Event, 'id'> = {
       title: formData.title.trim(),
@@ -242,8 +250,8 @@ export default function AdminEventsPage() {
       poster_url:
         formData.poster_url.trim() ||
         'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=1200&auto=format&fit=crop&q=80',
-      start_date: new Date().toISOString(),
-      end_date: new Date(Date.now() + 14 * 86400000).toISOString(),
+      start_date: startDateIso,
+      end_date: new Date(new Date(startDateIso).getTime() + 14 * 86400000).toISOString(),
       countdown_label: formData.countdown_label.trim() || 'Active Now',
       participants_count: 0,
       max_participants: 2000,
@@ -265,12 +273,14 @@ export default function AdminEventsPage() {
           : undefined,
     };
 
+    const sanitizedEv = sanitizeForFirestore(newEv);
+
     try {
-      const id = await createEvent(newEv);
-      setEvents([{ id, ...newEv }, ...events]);
+      const id = await createEvent(sanitizedEv);
+      setEvents([{ id, ...sanitizedEv }, ...events]);
     } catch (err) {
       console.error('Failed to create event:', err);
-      setEvents([{ id: 'ev-' + Date.now(), ...newEv }, ...events]);
+      setEvents([{ id: 'ev-' + Date.now(), ...sanitizedEv }, ...events]);
     }
 
     setIsAdding(false);
@@ -283,6 +293,10 @@ export default function AdminEventsPage() {
     const firmObj = editingEvent.is_firm_sponsored
       ? firmsList.find((f) => f.id === editingEvent.firm_id)
       : undefined;
+
+    const startDateIso = editingEvent.start_date
+      ? new Date(editingEvent.start_date).toISOString()
+      : editingEvent.start_date;
 
     const updatedData: Partial<Event> = {
       title: editingEvent.title,
@@ -300,19 +314,22 @@ export default function AdminEventsPage() {
         : editingEvent.host_name || 'EMPIRIAL Official',
       prize_pool: editingEvent.prize_pool,
       poster_url: editingEvent.poster_url,
+      start_date: startDateIso,
       countdown_label: editingEvent.countdown_label,
       description: editingEvent.description,
       requires_discord: editingEvent.requires_discord,
       discord_url: editingEvent.requires_discord ? editingEvent.discord_url : undefined,
     };
 
+    const sanitizedUpdated = sanitizeForFirestore(updatedData);
+
     try {
-      await updateEvent(editingEvent.id, updatedData);
-      setEvents(events.map((ev) => (ev.id === editingEvent.id ? { ...ev, ...updatedData } : ev)));
+      await updateEvent(editingEvent.id, sanitizedUpdated);
+      setEvents(events.map((ev) => (ev.id === editingEvent.id ? { ...ev, ...sanitizedUpdated } : ev)));
       setEditingEvent(null);
     } catch (err) {
       console.error('Failed to update event:', err);
-      setEvents(events.map((ev) => (ev.id === editingEvent.id ? { ...ev, ...updatedData } : ev)));
+      setEvents(events.map((ev) => (ev.id === editingEvent.id ? { ...ev, ...sanitizedUpdated } : ev)));
       setEditingEvent(null);
     }
   };
@@ -498,7 +515,7 @@ export default function AdminEventsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     Entry Type
@@ -535,6 +552,19 @@ export default function AdminEventsPage() {
                     value={formData.prize_pool}
                     onChange={(e) => setFormData({ ...formData, prize_pool: e.target.value })}
                     className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Tournament Start Date & Time *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 font-mono text-xs text-foreground focus:outline-none"
                   />
                 </div>
 
@@ -651,7 +681,7 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     Event Title
@@ -674,6 +704,24 @@ export default function AdminEventsPage() {
                     value={editingEvent.prize_pool}
                     onChange={(e) => setEditingEvent({ ...editingEvent, prize_pool: e.target.value })}
                     className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-foreground"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Start Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={
+                      editingEvent.start_date
+                        ? editingEvent.start_date.length > 16
+                          ? new Date(editingEvent.start_date).toISOString().slice(0, 16)
+                          : editingEvent.start_date
+                        : ''
+                    }
+                    onChange={(e) => setEditingEvent({ ...editingEvent, start_date: e.target.value })}
+                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 font-mono text-xs text-foreground"
                   />
                 </div>
 

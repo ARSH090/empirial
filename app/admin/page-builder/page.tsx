@@ -426,21 +426,47 @@ export default function AdminPageBuilderPage() {
     const firm = firmsList.find((f) => f.id === firmId);
     if (firm) {
       const updated = [...plans];
+      const currentStep = updated[index]?.steps !== undefined ? updated[index].steps : 2;
+      const firmSlug = firm.slug || firm.id;
+      const evalText = currentStep === 0 ? '( Instant )' : currentStep === 1 ? '( 1-Step )' : currentStep === 3 ? '( 3-Step )' : '( 2-Step )';
+
       updated[index] = {
         ...updated[index],
-        id: firm.slug || firm.id,
+        id: firmSlug,
+        firmId: firm.id,
+        firmSlug: firmSlug,
         name: firm.name,
-        logo: firm.logo_url,
-        profitSplit: firm.profit_split_custom || updated[index].profitSplit,
-        discount: firm.discount_label_custom || updated[index].discount,
-        code: firm.coupon_code_custom || updated[index].code,
+        logo: firm.logo_url || updated[index]?.logo || '',
+        reviewUrl: `/firms/${firmSlug}`,
+        steps: currentStep,
+        evalType: evalText,
+        accountSize: updated[index]?.accountSize || '$5K - $100K',
+        profitSplit: firm.profit_split_custom || updated[index]?.profitSplit || '85%',
+        discount: firm.discount_label_custom || updated[index]?.discount || '20% DISCOUNT',
+        code: firm.coupon_code_custom || updated[index]?.code || 'EMPIRE',
         drawdownDaily: `${firm.daily_loss_pct || 5}%`,
         drawdownMax: `${firm.max_loss_pct || 10}%`,
         profitTarget: `${firm.profit_target_pct || 8}%`,
-        buyUrl: `/challenges?firm=${encodeURIComponent(firm.slug || firm.id)}`,
+        buyUrl: `/challenges?firm=${encodeURIComponent(firmSlug)}&step=${currentStep}`,
       };
       setPlans(updated);
     }
+  };
+
+  const handlePlanStepSelect = (index: number, stepVal: number) => {
+    const updated = [...plans];
+    const targetPlan = updated[index] || {};
+    const evalText = stepVal === 0 ? '( Instant )' : stepVal === 1 ? '( 1-Step )' : stepVal === 3 ? '( 3-Step )' : '( 2-Step )';
+    const firmSlug = targetPlan.firmSlug || targetPlan.id || '';
+    const newBuyUrl = firmSlug ? `/challenges?firm=${encodeURIComponent(firmSlug)}&step=${stepVal}` : (targetPlan.buyUrl || '');
+
+    updated[index] = {
+      ...targetPlan,
+      steps: stepVal,
+      evalType: evalText,
+      buyUrl: newBuyUrl,
+    };
+    setPlans(updated);
   };
 
   // SAVE 4: STATS
@@ -999,46 +1025,76 @@ export default function AdminPageBuilderPage() {
                   </div>
 
                   {/* Firm Name & Logo URL */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-semibold text-muted-foreground">Firm Name</label>
-                    <input
-                      type="text"
-                      value={plan.name || ''}
-                      onChange={(e) => handleUpdatePlan(index, 'name', e.target.value)}
-                      className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground font-bold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-semibold text-muted-foreground">Logo URL</label>
-                    <input
-                      type="text"
-                      value={plan.logo || ''}
-                      onChange={(e) => handleUpdatePlan(index, 'logo', e.target.value)}
-                      className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground"
-                    />
-                  </div>
-
-                  {/* Account Size & Eval Type */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-semibold text-muted-foreground">Account Size</label>
+                      <label className="text-[10px] uppercase font-semibold text-muted-foreground">Firm Name</label>
+                      <input
+                        type="text"
+                        value={plan.name || ''}
+                        onChange={(e) => handleUpdatePlan(index, 'name', e.target.value)}
+                        className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase font-semibold text-muted-foreground">Logo URL</label>
+                      <input
+                        type="text"
+                        value={plan.logo || ''}
+                        onChange={(e) => handleUpdatePlan(index, 'logo', e.target.value)}
+                        className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Review Button Link */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-semibold text-muted-foreground">Review Button Link</label>
+                    <input
+                      type="text"
+                      value={plan.reviewUrl || (plan.id ? `/firms/${plan.id}` : '')}
+                      onChange={(e) => handleUpdatePlan(index, 'reviewUrl', e.target.value)}
+                      className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                      placeholder="/firms/firm-slug"
+                    />
+                  </div>
+
+                  {/* Account Step Selection & Account Range */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase font-semibold text-muted-foreground">Select Step (Account Type)</label>
+                      <select
+                        value={plan.steps !== undefined ? plan.steps : 2}
+                        onChange={(e) => handlePlanStepSelect(index, parseInt(e.target.value, 10))}
+                        className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-foreground font-semibold text-xs"
+                      >
+                        <option value={1}>1-Step Challenge</option>
+                        <option value={2}>2-Step Evaluation</option>
+                        <option value={0}>Instant Funding</option>
+                        <option value={3}>3-Step Challenge</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase font-semibold text-muted-foreground">Account Range Text</label>
                       <input
                         type="text"
                         value={plan.accountSize || '$100K'}
                         onChange={(e) => handleUpdatePlan(index, 'accountSize', e.target.value)}
                         className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground font-extrabold"
+                        placeholder="$5K - $100K"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-semibold text-muted-foreground">Eval Type</label>
-                      <input
-                        type="text"
-                        value={plan.evalType || '( 2-Step )'}
-                        onChange={(e) => handleUpdatePlan(index, 'evalType', e.target.value)}
-                        className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground font-semibold"
-                      />
-                    </div>
+                  </div>
+
+                  {/* Eval Type Label */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-semibold text-muted-foreground">Eval Type Label</label>
+                    <input
+                      type="text"
+                      value={plan.evalType || '( 2-Step )'}
+                      onChange={(e) => handleUpdatePlan(index, 'evalType', e.target.value)}
+                      className="w-full bg-white dark:bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-foreground font-semibold"
+                    />
                   </div>
 
                   {/* Profit Target & Max Loss Type */}

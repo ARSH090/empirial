@@ -176,6 +176,7 @@ export interface Event {
   
   popularity_score?: number;
   created_at?: string;
+  updated_at?: string;
   
   registration_url: string;
   image_url?: string;

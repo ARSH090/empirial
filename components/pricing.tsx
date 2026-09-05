@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import { getPricingPlans } from "@/lib/firebase/services";
 
 export default function Pricing() {
@@ -32,9 +33,11 @@ export default function Pricing() {
 
   const DEFAULT_FIRMS = [
     {
-      id: "nys",
+      id: "nys-capital",
       name: "NYS Capital",
       logo: "/logos/nys.png",
+      reviewUrl: "/firms/nys-capital",
+      steps: 1,
       accountSize: "$5K - $100K",
       evalType: "( 1-Step )",
       isMostPop: false,
@@ -45,11 +48,14 @@ export default function Pricing() {
       profitSplit: "80%",
       discount: "20% DISCOUNT",
       code: "EMPIRE",
+      buyUrl: "/challenges?firm=nys-capital&step=1",
     },
     {
       id: "ck-capital",
       name: "CK Capital",
       logo: "/logos/ck-capital.avif",
+      reviewUrl: "/firms/ck-capital",
+      steps: 2,
       accountSize: "$10K - $200K",
       evalType: "( 2-Step )",
       isMostPop: true,
@@ -60,11 +66,14 @@ export default function Pricing() {
       profitSplit: "85%",
       discount: "28% DISCOUNT",
       code: "EMPIRE",
+      buyUrl: "/challenges?firm=ck-capital&step=2",
     },
     {
       id: "alpha-capital",
       name: "Alpha Capital",
       logo: "/logos/alpha-capital.png",
+      reviewUrl: "/firms/alpha-capital",
+      steps: 0,
       accountSize: "$5K - $300K",
       evalType: "( Instant )",
       isMostPop: false,
@@ -75,6 +84,7 @@ export default function Pricing() {
       profitSplit: "80%",
       discount: "20% DISCOUNT",
       code: "EMPIRE",
+      buyUrl: "/challenges?firm=alpha-capital&step=0",
     },
   ];
 
@@ -106,8 +116,15 @@ export default function Pricing() {
       return;
     }
 
-    // If code copied, redirect to Challenges page with already selected firm filter
-    router.push(`/challenges?firm=${encodeURIComponent(firm.id)}`);
+    // If code copied, transfer to Challenges page with firm & step filters applied
+    const targetFirm = firm.firmSlug || firm.id;
+    const stepVal = firm.steps !== undefined ? firm.steps : 2;
+
+    let targetUrl = firm.buyUrl;
+    if (!targetUrl || targetUrl.startsWith('/challenges')) {
+      targetUrl = `/challenges?firm=${encodeURIComponent(targetFirm)}&step=${stepVal}`;
+    }
+    router.push(targetUrl);
   };
 
   return (
@@ -160,14 +177,14 @@ export default function Pricing() {
                 )}
 
                 <div>
-                  {/* Header: Firm Name & Logo */}
+                  {/* Header: Firm Name & Logo & Review Button */}
                   <div className="text-center flex flex-col items-center justify-center">
                     <h3 className="text-lg font-bold sm:text-xl text-foreground">
                       {firm.name}
                     </h3>
                     
                     {/* Logo - Slightly Larger with rounded-md edges */}
-                    <div className="my-3 flex items-center justify-center h-12 w-full">
+                    <div className="my-2.5 flex items-center justify-center h-12 w-full">
                       <img
                         src={logoSrc}
                         alt={firm.name}
@@ -175,8 +192,18 @@ export default function Pricing() {
                       />
                     </div>
 
+                    {/* Review Button */}
+                    <button
+                      type="button"
+                      onClick={() => router.push(firm.reviewUrl || `/firms/${firm.firmSlug || firm.id}`)}
+                      className="mb-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-card dark:text-foreground dark:hover:bg-zinc-800 text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <span>Read Review</span>
+                      <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                    </button>
+
                     {/* Main Detail Before Dividing Line */}
-                    <div className="mt-1 flex flex-col items-center">
+                    <div className="mt-2 flex flex-col items-center">
                       <span className="text-2xl font-extrabold sm:text-3xl text-foreground tracking-tight">
                         {firm.accountSize || "$100K"}
                       </span>

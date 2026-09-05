@@ -58,9 +58,7 @@ export function DealsClient() {
   useEffect(() => {
     // Client-side hydration sync with local storage
     const currentLocal = getStoredDeals();
-    if (currentLocal && currentLocal.length > 0) {
-      setDeals(currentLocal);
-    }
+    setDeals(currentLocal);
 
     async function loadData() {
       try {
@@ -70,7 +68,7 @@ export function DealsClient() {
           getReviews().catch(() => []),
         ]);
 
-        if (dealsData && dealsData.length > 0) setDeals(sortDeals(dealsData));
+        if (dealsData) setDeals(sortDeals(dealsData));
         if (firmsData && firmsData.length > 0) setFirmsList(firmsData);
         if (reviewsData && reviewsData.length > 0) setAllReviews(reviewsData);
       } catch (err) {

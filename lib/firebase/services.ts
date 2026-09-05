@@ -34,6 +34,9 @@ import {
   BlogPost 
 } from '../types';
 
+import { MOCK_EVENTS } from '../data/events-data';
+import { MOCK_DEALS } from '../data/deals-data';
+
 // Helper to convert Firestore Snapshot to Array of items
 const mapSnapshot = <T>(snapshot: any): T[] => {
   return snapshot.docs.map((doc: any) => ({
@@ -41,6 +44,31 @@ const mapSnapshot = <T>(snapshot: any): T[] => {
     ...doc.data()
   })) as T[];
 };
+
+// Helper to recursively strip undefined properties from objects and arrays so Firestore setDoc/updateDoc doesn't throw unsupported undefined errors
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === undefined) return undefined as any;
+  if (data === null || typeof data !== 'object') return data;
+  if (data instanceof Date) return data;
+
+  if (Array.isArray(data)) {
+    return data
+      .map((item) => sanitizeForFirestore(item))
+      .filter((item) => item !== undefined) as any;
+  }
+
+  const clean: any = {};
+  for (const key of Object.keys(data as any)) {
+    const val = (data as any)[key];
+    if (val !== undefined) {
+      const sanitizedVal = sanitizeForFirestore(val);
+      if (sanitizedVal !== undefined) {
+        clean[key] = sanitizedVal;
+      }
+    }
+  }
+  return clean as T;
+}
 
 // ==========================================
 // MEDIA & FILE UPLOADS
@@ -244,28 +272,45 @@ export async function deleteChallenge(id: string): Promise<void> {
 // DISCOUNT DEALS
 // ==========================================
 export async function getDeals(): Promise<Deal[]> {
+  const isInit = typeof window !== 'undefined' ? localStorage.getItem('empirial_deals_initialized') : null;
   const localDeals = typeof window !== 'undefined' ? getStoredDeals() : [];
+
   if (!db) return localDeals;
   try {
     const colRef = collection(db, 'deals');
     const snap = await getDocs(colRef);
     const firestoreDeals = mapSnapshot<Deal>(snap);
-    if (!firestoreDeals || firestoreDeals.length === 0) {
-      return localDeals;
-    }
-    // Local deals take priority (containing recent admin additions/edits)
-    const localMap = new Map(localDeals.map((d) => [d.id, d]));
-    const merged = [...localDeals];
-    for (const fd of firestoreDeals) {
-      if (!localMap.has(fd.id)) {
-        merged.push(fd);
+
+    if (firestoreDeals && firestoreDeals.length > 0) {
+      const sorted = sortDeals(firestoreDeals);
+      if (typeof window !== 'undefined') {
+        saveStoredDeals(sorted);
       }
+      return sorted;
     }
-    const result = sortDeals(merged);
+
+    if (isInit === 'true') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('empirial_deals_list', JSON.stringify([]));
+      }
+      return [];
+    }
+
+    // First time load: Seed MOCK_DEALS into Firestore and localStorage
     if (typeof window !== 'undefined') {
-      saveStoredDeals(result);
+      saveStoredDeals(MOCK_DEALS);
     }
-    return result;
+
+    try {
+      for (const deal of MOCK_DEALS) {
+        const sanitized = sanitizeForFirestore(deal);
+        await setDoc(doc(db, 'deals', deal.id), sanitized);
+      }
+    } catch (err) {
+      console.warn('Seeding mock deals to Firestore failed:', err);
+    }
+
+    return MOCK_DEALS;
   } catch (err) {
     console.error('Error fetching deals from Firestore:', err);
     return localDeals;
@@ -273,29 +318,51 @@ export async function getDeals(): Promise<Deal[]> {
 }
 
 export async function createDeal(deal: Omit<Deal, 'id'>): Promise<string> {
-  if (!db) throw new Error('Firestore not initialized');
-  const docRef = doc(collection(db, 'deals'));
-  await setDoc(docRef, {
+  const generatedId = `deal-${Date.now()}`;
+  const fullDeal: Deal = {
     ...deal,
-    id: docRef.id,
-    created_at: new Date().toISOString(),
+    id: generatedId,
+    created_at: deal.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString()
-  });
-  return docRef.id;
+  };
+
+  const sanitized = sanitizeForFirestore(fullDeal);
+
+  if (db) {
+    try {
+      const docRef = doc(db, 'deals', generatedId);
+      await setDoc(docRef, sanitized);
+      return generatedId;
+    } catch (err) {
+      console.error('Error creating deal in Firestore:', err);
+    }
+  }
+  return generatedId;
 }
 
 export async function updateDeal(id: string, deal: Partial<Deal>): Promise<void> {
-  if (!db) return;
-  const docRef = doc(db, 'deals', id);
-  await updateDoc(docRef, {
+  const sanitized = sanitizeForFirestore({
     ...deal,
     updated_at: new Date().toISOString()
   });
+
+  if (db) {
+    try {
+      const docRef = doc(db, 'deals', id);
+      await updateDoc(docRef, sanitized);
+    } catch (err) {
+      console.error('Error updating deal in Firestore:', err);
+    }
+  }
 }
 
 export async function deleteDeal(id: string): Promise<void> {
   if (!db) return;
-  await deleteDoc(doc(db, 'deals', id));
+  try {
+    await deleteDoc(doc(db, 'deals', id));
+  } catch (err) {
+    console.error('Error deleting deal from Firestore:', err);
+  }
 }
 
 export async function incrementDealClicks(id: string): Promise<void> {
@@ -390,36 +457,140 @@ export async function incrementReviewUpvotes(id: string): Promise<void> {
 // TOURNAMENTS & EVENTS
 // ==========================================
 export async function getEvents(): Promise<Event[]> {
-  if (!db) return [];
-  const colRef = collection(db, 'events');
-  const snap = await getDocs(query(colRef, orderBy('start_date', 'asc')));
-  return mapSnapshot<Event>(snap);
+  const isInitialized = typeof window !== 'undefined' ? localStorage.getItem('empirial_events_initialized') : null;
+  const cachedData = typeof window !== 'undefined' ? localStorage.getItem('empirial_events_cache') : null;
+
+  if (!db) {
+    if (cachedData) {
+      try { return JSON.parse(cachedData); } catch (_) {}
+    }
+    return isInitialized === 'true' ? [] : MOCK_EVENTS;
+  }
+
+  try {
+    const colRef = collection(db, 'events');
+    const snap = await getDocs(query(colRef, orderBy('start_date', 'asc')));
+    const firebaseEvents = mapSnapshot<Event>(snap);
+
+    if (firebaseEvents.length > 0) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('empirial_events_initialized', 'true');
+        localStorage.setItem('empirial_events_cache', JSON.stringify(firebaseEvents));
+      }
+      return firebaseEvents;
+    }
+
+    if (isInitialized === 'true') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('empirial_events_cache', JSON.stringify([]));
+      }
+      return [];
+    }
+
+    // First time load: seed MOCK_EVENTS into Firestore and localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('empirial_events_initialized', 'true');
+      localStorage.setItem('empirial_events_cache', JSON.stringify(MOCK_EVENTS));
+    }
+
+    try {
+      for (const ev of MOCK_EVENTS) {
+        await setDoc(doc(db, 'events', ev.id), ev);
+      }
+    } catch (err) {
+      console.warn('Seeding mock events to Firestore failed:', err);
+    }
+
+    return MOCK_EVENTS;
+  } catch (err) {
+    console.error('Failed to get events from Firestore:', err);
+    if (cachedData) {
+      try { return JSON.parse(cachedData); } catch (_) {}
+    }
+    return isInitialized === 'true' ? [] : MOCK_EVENTS;
+  }
 }
 
 export async function createEvent(event: Omit<Event, 'id'>): Promise<string> {
-  if (!db) throw new Error('Firestore not initialized');
-  const docRef = doc(collection(db, 'events'));
-  await setDoc(docRef, {
+  const generatedId = `evt-${Date.now()}`;
+  const fullEvent: Event = {
     ...event,
-    id: docRef.id,
-    created_at: new Date().toISOString(),
+    id: generatedId,
+    created_at: event.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString()
-  });
-  return docRef.id;
+  };
+
+  const sanitizedEvent = sanitizeForFirestore(fullEvent);
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('empirial_events_initialized', 'true');
+    const existing = localStorage.getItem('empirial_events_cache');
+    let list: Event[] = [];
+    if (existing) {
+      try { list = JSON.parse(existing); } catch (_) {}
+    }
+    list = [sanitizedEvent, ...list];
+    localStorage.setItem('empirial_events_cache', JSON.stringify(list));
+  }
+
+  if (db) {
+    try {
+      const docRef = doc(db, 'events', generatedId);
+      await setDoc(docRef, sanitizedEvent);
+      return generatedId;
+    } catch (err) {
+      console.error('Failed to create event in Firestore:', err);
+    }
+  }
+
+  return generatedId;
 }
 
 export async function updateEvent(id: string, event: Partial<Event>): Promise<void> {
-  if (!db) return;
-  const docRef = doc(db, 'events', id);
-  await updateDoc(docRef, {
+  const sanitized = sanitizeForFirestore({
     ...event,
     updated_at: new Date().toISOString()
   });
+
+  if (typeof window !== 'undefined') {
+    const existing = localStorage.getItem('empirial_events_cache');
+    if (existing) {
+      try {
+        let list: Event[] = JSON.parse(existing);
+        list = list.map((ev) => (ev.id === id ? { ...ev, ...sanitized } : ev));
+        localStorage.setItem('empirial_events_cache', JSON.stringify(list));
+      } catch (_) {}
+    }
+  }
+
+  if (!db) return;
+  try {
+    const docRef = doc(db, 'events', id);
+    await updateDoc(docRef, sanitized);
+  } catch (err) {
+    console.error('Failed to update event in Firestore:', err);
+  }
 }
 
 export async function deleteEvent(id: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('empirial_events_initialized', 'true');
+    const existing = localStorage.getItem('empirial_events_cache');
+    if (existing) {
+      try {
+        let list: Event[] = JSON.parse(existing);
+        list = list.filter((ev) => ev.id !== id);
+        localStorage.setItem('empirial_events_cache', JSON.stringify(list));
+      } catch (_) {}
+    }
+  }
+
   if (!db) return;
-  await deleteDoc(doc(db, 'events', id));
+  try {
+    await deleteDoc(doc(db, 'events', id));
+  } catch (err) {
+    console.error('Failed to delete event from Firestore:', err);
+  }
 }
 
 // ==========================================
