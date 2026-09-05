@@ -155,12 +155,29 @@ export default function AdminEventsPage() {
         return;
       }
 
-      const scale = zoomScale / 100;
-      const sw = img.width / scale;
-      const sh = img.height / scale;
-      const sx = Math.max(0, Math.min(img.width - sw, ((img.width - sw) * positionX) / 100));
-      const sy = Math.max(0, Math.min(img.height - sh, ((img.height - sh) * positionY) / 100));
+      const imgAspect = img.width / img.height;
+      const targetAspect = targetWidth / targetHeight;
+      const scale = Math.max(1, zoomScale / 100);
 
+      let sw: number;
+      let sh: number;
+
+      if (imgAspect > targetAspect) {
+        sh = img.height / scale;
+        sw = (img.height * targetAspect) / scale;
+      } else {
+        sw = img.width / scale;
+        sh = (img.width / targetAspect) / scale;
+      }
+
+      const maxSx = Math.max(0, img.width - sw);
+      const maxSy = Math.max(0, img.height - sh);
+
+      const sx = Math.max(0, Math.min(maxSx, maxSx * (positionX / 100)));
+      const sy = Math.max(0, Math.min(maxSy, maxSy * (positionY / 100)));
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
       const croppedUrl = canvas.toDataURL('image/jpeg', 0.92);
 
